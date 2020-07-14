@@ -11,7 +11,9 @@ These two projects are integrated with [GitHub](https://github.com/) facilities 
 * `install-artifact-from-github` retrieves such artifact, tests if it works properly, and rebuilds a project from sources in the case of failure.
 
 In general it can save your users from a long recompilation and, in some cases, even save them from installing build tools.
-By using GitHub facilities (Releases and Actions) the whole process of publishing and subsequent installations is secure and transparent.
+By using GitHub facilities ([Releases](https://docs.github.com/en/github/administering-a-repository/about-releases)
+and [Actions](https://github.com/features/actions)) the whole process of publishing and subsequent installations is secure,
+transparent, inexpensive or even free for public repositories.
 
 ## How to install
 
