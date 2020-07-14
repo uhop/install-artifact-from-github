@@ -67,7 +67,7 @@ const getAssetUrlPrefix = () => {
 const isDev = async () => {
   if (process.env.DEVELOPMENT_SKIP_GETTING_ASSET) return true;
   try {
-    await fsp.access(path.join(__dirname, '../.development'));
+    await fsp.access('.development');
     return true;
   } catch (e) {
     // squelch
