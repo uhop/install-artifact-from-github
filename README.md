@@ -75,6 +75,8 @@ When a project, which uses `install-artifact-from-github`, is being installed, i
   It is useful for development and testing.
 * `DOWNLOAD_HOST` &mdash; if set, its value is used instead of `https://github.com`.
 
+This script is meant to be run using `npm run`. It relies on `npm` environment variables to learn about the project.
+
 ### Command-line parameters
 
 * `--artifact path` &mdash; points where to place the downloaded artifact. It is a required parameter.
