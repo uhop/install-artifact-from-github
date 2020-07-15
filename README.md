@@ -4,16 +4,16 @@
 [npm-url]: https://npmjs.org/package/install-artifact-from-github
 
 This is a no-dependency micro helper for developers of binary addons for Node.
-It is companion project is [save-artifact-to-github](https://www.npmjs.com/package/save-artifact-to-github).
+It is a companion project for [save-artifact-to-github](https://www.npmjs.com/package/save-artifact-to-github).
 These two projects are integrated with [GitHub](https://github.com/) facilities and solve two problems:
 
-* `save-artifact-to-github` saves a binary artifact according to platform, architecture, and Node ABI.
+* `save-artifact-to-github` saves a binary artifact according to the platform, architecture, and Node ABI.
 * `install-artifact-from-github` retrieves such artifact, tests if it works properly, and rebuilds a project from sources in the case of failure.
 
-In general it can save your users from a long recompilation and, in some cases, even save them from installing build tools.
+In general, it can save your users from a long recompilation and, in some cases, even save them from installing build tools.
 By using GitHub facilities ([Releases](https://docs.github.com/en/github/administering-a-repository/about-releases)
-and [Actions](https://github.com/features/actions)) the whole process of publishing and subsequent installations is secure,
-transparent, painless, inexpensive or even free for public repositories.
+and [Actions](https://github.com/features/actions)) the whole process of publishing and subsequent installations are secure,
+transparent, painless, inexpensive, or even free for public repositories.
 
 ## How to install
 
