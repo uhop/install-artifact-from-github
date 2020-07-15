@@ -103,7 +103,7 @@ Where:
 * `platform` is [process.platform](https://nodejs.org/api/process.html#process_process_platform).
   * Because Linux has different implementations of the C standard library, a special case is made for
     [musl](https://musl.libc.org/) used by such popular distributions like [Alpine](https://alpinelinux.org/).
-    Such platforms has a code `linux-musl`.
+    Such platforms have a code `linux-musl`.
 * `arch` is [process.arch](https://nodejs.org/api/process.html#process_process_arch).
 * `abi` is [process.versions.modules](https://nodejs.org/api/process.html#process_process_versions).
 * `compression` can be `br` or `gz`.
