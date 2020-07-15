@@ -75,7 +75,8 @@ When a project, which uses `install-artifact-from-github`, is being installed, i
   It is useful for development and testing.
 * `DOWNLOAD_HOST` &mdash; if set, its value is used instead of `https://github.com`.
 
-This script is meant to be run using `npm run`. It relies on `npm` environment variables to learn about the project.
+This script is meant to be run using `npm run`. It relies on
+[npm environment variables](https://docs.npmjs.com/misc/config#environment-variables) to learn about the project.
 
 ### Command-line parameters
 
@@ -97,7 +98,28 @@ Ultimately, the downloadable file name has the following format:
 `${host}/${user}/${repo}/releases/download/${tag}/${prefix}${platform}-${arch}-${abi}${suffix}.${compression}`
 ```
 
+Where:
+
+* `platform` is [process.platform](https://nodejs.org/api/process.html#process_process_platform).
+  * Because Linux has different implementations of the C standard library, a special case is made for
+    [musl](https://musl.libc.org/) used by such popular distributions like [Alpine](https://alpinelinux.org/).
+    Such platforms has a code `linux-musl`.
+* `arch` is [process.arch](https://nodejs.org/api/process.html#process_process_arch).
+* `abi` is [process.versions.modules](https://nodejs.org/api/process.html#process_process_versions).
+* `compression` can be `br` or `gz`.
+
 Example with default values: `https://github.com/uhop/node-re2/releases/download/1.15.2/linux-x64-83.br`.
+
+## Documentation
+
+The additional documentation is available in the [wiki](https://github.com/uhop/install-artifact-from-github/wiki).
+
+### Example
+
+The realistic complex example can be found in [uhop/node-re2](https://github.com/uhop/node-re2):
+
+* [package.json](https://github.com/uhop/node-re2/blob/master/package.json) sets it up.
+* [builds.yaml](https://github.com/uhop/node-re2/blob/master/.github/workflows/build.yml) implements a complex workflow.
 
 ## Release history
 
