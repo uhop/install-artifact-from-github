@@ -1,6 +1,6 @@
 {
   "name": "install-artifact-from-github",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Create binary artifacts hosted by github and install from them without compiling.",
   "homepage": "http://github.com/uhop/install-artifact-from-github",
   "bugs": "http://github.com/uhop/install-artifact-from-github/issues",
@@ -16,7 +16,7 @@
     "/utils"
   ],
   "bin": {
-    "install-from-cache": "/bin/install-from-cache.js"
+    "install-from-cache": "./bin/install-from-cache.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
