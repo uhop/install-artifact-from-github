@@ -86,8 +86,8 @@ This script is meant to be run using `npm run`. It relies on
 * `--host host` &mdash; provides a prefix for the download host. It should not end with `/`.
   Example: `--host https://sample.com/repo`.
   * If specified and non-empty, its value sets the host.
-* `--host-env ENVVAR` &mdash; provides a name of an environment variable, which value will specify the download host.
-  Example: `--host-env RE2_DOWNLOAD_MIRROR`.
+* `--host-var ENVVAR` &mdash; provides a name of an environment variable, which value will specify the download host.
+  Example: `--host-var RE2_DOWNLOAD_MIRROR`.
   * Used only if `--host` is not specified.
   * If it is not specified, `DOWNLOAD_HOST` name is assumed.
   * If the specified environment variable is empty, `https://github.com` will be used.
@@ -123,4 +123,5 @@ The realistic complex example can be found in [uhop/node-re2](https://github.com
 
 ## Release history
 
+- 1.0.1 *fixed a bug in the environment variable parameter.*
 - 1.0.0 *initial release (extracted from [node-re2](https://github.com/uhop/node-re2)).*

@@ -34,7 +34,7 @@ const artifactPath = getParam('artifact'),
   prefix = getParam('prefix'),
   suffix = getParam('suffix'),
   mirrorHost = getParam('host'),
-  mirrorEnvVar = getParam('host-env') || 'DOWNLOAD_HOST';
+  mirrorEnvVar = getParam('host-var') || 'DOWNLOAD_HOST';
 
 const parseUrl = [
   /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
