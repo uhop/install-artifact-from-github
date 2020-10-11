@@ -53,21 +53,19 @@ const io = async (url, options = {}, data) =>
         res.on('end', () => resolve(buffer));
       })
       .on('error', e => reject(e));
-    if (data) {
-      req.write(data);
-      req.end();
-    }
+    data && req.write(data);
+    req.end();
   });
 const get = async (url, options) => io(url, {...options, method: 'GET'});
 const post = async (url, options, data) => io(url, {...options, method: 'POST'}, data);
 
-const url = parts => {
+function url(parts) {
   let result = parts[0] || '';
   for (let i = 1; i < parts.length; ++i) {
     result += encodeURIComponent(arguments[i]) + parts[i];
   }
   return result;
-};
+}
 
 const artifactPath = getParam('artifact'),
   prefix = getParam('prefix'),
@@ -86,10 +84,11 @@ const main = async () => {
     fsp.readFile(path.normalize(artifactPath)),
     get(url`https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${TAG}`, {
       auth: OWNER + ':' + TOKEN,
-      headers: {Accept: 'application/vnd.github.v3+json'}
+      headers: {Accept: 'application/vnd.github.v3+json', 'User-Agent': 'uhop/install-artifact-from-github'}
     }).then(response => {
-      const p = response.upload_url.indexOf('{');
-      return p > 0 ? response.upload_url.substr(0, p) : response.upload_url;
+      const data = JSON.parse(response.toString()),
+        p = data.upload_url.indexOf('{');
+      return p > 0 ? data.upload_url.substr(0, p) : data.upload_url;
     })
   ]);
 
@@ -105,7 +104,12 @@ const main = async () => {
         uploadUrl + '?' + url`name=${name}&label=${label}`,
         {
           auth: OWNER + ':' + TOKEN,
-          headers: {Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/brotli', 'Content-Length': compressed.length}
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/brotli',
+            'Content-Length': compressed.length,
+            'User-Agent': 'uhop/install-artifact-from-github'
+          }
         },
         compressed
       )
@@ -121,7 +125,12 @@ const main = async () => {
         uploadUrl + '?' + url`name=${name}&label=${label}`,
         {
           auth: OWNER + ':' + TOKEN,
-          headers: {Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/gzip', 'Content-Length': compressed.length}
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/gzip',
+            'Content-Length': compressed.length,
+            'User-Agent': 'uhop/install-artifact-from-github'
+          }
         },
         compressed
       )
