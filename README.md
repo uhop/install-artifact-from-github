@@ -123,6 +123,7 @@ The realistic complex example can be found in [uhop/node-re2](https://github.com
 
 ## Release history
 
+- 1.1.0 *moved `save-to-github` here from a separate project, reduced 3rd-party dependencies.*
 - 1.0.2 *fixed a `yarn`-specific bug.*
 - 1.0.1 *fixed a bug in the environment variable parameter.*
 - 1.0.0 *initial release (extracted from [node-re2](https://github.com/uhop/node-re2)).*
