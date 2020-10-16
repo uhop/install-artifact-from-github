@@ -6,7 +6,7 @@
 This is a no-dependency micro helper for developers of binary addons for Node. It is literally two small one-file utilities integrated with [GitHub releases](https://docs.github.com/en/free-pro-team@latest/github/administering-a-repository/about-releases). The project solves two problems:
 
 * [save-to-github-cache](./Saving) saves a binary artifact to a Github release according to the platform, architecture, and Node ABI.
-  * Designed to use with [GitHub actions](https://github.com/features/actions).
+  * Designed to be used with [GitHub actions](https://github.com/features/actions).
 * [install-from-cache](./Installing) retrieves a previously saved artifact, tests if it works properly, and rebuilds a project from sources in the case of failure.
 
 In general, it can save your users from a long recompilation and, in some cases, even save them from installing build tools.
@@ -34,7 +34,7 @@ In your `package.json` (pseudo-code with comments):
     // your scripts go here
     // ...
 
-    // creates an artifact (from save-artifact-to-github)
+    // saves an artifact
     "save-to-github": "save-to-github-cache --artifact build/Release/ABC.node",
 
     // installs using pre-created artifacts
@@ -57,6 +57,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
+- 1.1.3 *technical release: updated docs.*
 - 1.1.2 *technical release: updated docs.*
 - 1.1.1 *numerous bugfixes to please Github REST API.*
 - 1.1.0 *moved `save-to-github` here from a separate project, reduced 3rd-party dependencies.*
