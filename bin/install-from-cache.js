@@ -52,10 +52,7 @@ const getRepo = url => {
 };
 
 const getAssetUrlPrefix = () => {
-  const url =
-      process.env.npm_package_github ||
-      process.env.npm_package_repository ||
-      (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
+  const url = process.env.npm_package_github || (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
     result = getRepo(url),
     host = mirrorHost || process.env[mirrorEnvVar] || 'https://github.com';
   return (
@@ -141,6 +138,23 @@ const write = async (name, data) => {
 
 const main = async () => {
   checks: {
+    if (process.env.npm_package_json && /\bpackage\.json$/i.test(process.env.npm_package_json)) {
+      // for NPM >= 7
+      try {
+        // read the package info
+        const pkg = JSON.parse(await fsp.readFile(process.env.npm_package_json));
+        // populate necessary environment variables locally
+        process.env.npm_package_github = pkg.github || '';
+        process.env.npm_package_repository_type = (pkg.repository && pkg.repository.type) || '';
+        process.env.npm_package_repository_url = (pkg.repository && pkg.repository.url) || '';
+        process.env.npm_package_version = pkg.version || '';
+        process.env.npm_package_scripts_verify_build = (pkg.scripts && pkg.scripts['verify-build']) || '';
+        process.env.npm_package_scripts_test = (pkg.scripts && pkg.scripts.test) || '';
+      } catch (error) {
+        console.log('Could not retrieve and parse package.json.');
+        break checks;
+      }
+    }
     if (!artifactPath) {
       console.log('No artifact path was specified with --artifact.');
       break checks;
