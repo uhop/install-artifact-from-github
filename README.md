@@ -57,6 +57,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
+- 1.2.0 *support for NPM >= 7.*
 - 1.1.3 *technical release: updated docs.*
 - 1.1.2 *technical release: updated docs.*
 - 1.1.1 *numerous bugfixes to please Github REST API.*
