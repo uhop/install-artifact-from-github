@@ -2,7 +2,7 @@
 
 'use strict';
 
-const {promises: fsp} = require('fs');
+const {promises: fsp, existsSync} = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {promisify} = require('util');
@@ -138,6 +138,13 @@ const write = async (name, data) => {
 
 const main = async () => {
   checks: {
+    if (!process.env.npm_package_json && process.env.PWD) {
+      const package_json_path = path.join(process.env.PWD, 'package.json')
+      if (existsSync(package_json_path)) {
+        process.env.npm_package_json = package_json_path
+      }
+    }
+
     if (process.env.npm_package_json && /\bpackage\.json$/i.test(process.env.npm_package_json)) {
       // for NPM >= 7
       try {
