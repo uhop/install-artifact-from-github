@@ -6,6 +6,7 @@ const {promises: fsp} = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {promisify} = require('util');
+const http = require('http');
 const https = require('https');
 const {exec, spawnSync} = require('child_process');
 
@@ -24,6 +25,8 @@ const getPlatform = () => {
 };
 const platform = getPlatform();
 
+const isParamPresent = name => process.argv.indexOf('--' + name) > 0;
+
 const getParam = (name, defaultValue = '') => {
   const index = process.argv.indexOf('--' + name);
   if (index > 0) return process.argv[index + 1] || '';
@@ -34,13 +37,20 @@ const artifactPath = getParam('artifact'),
   prefix = getParam('prefix'),
   suffix = getParam('suffix'),
   mirrorHost = getParam('host'),
-  mirrorEnvVar = getParam('host-var') || 'DOWNLOAD_HOST';
+  mirrorEnvVar = getParam('host-var') || 'DOWNLOAD_HOST',
+  skipPath = isParamPresent('skip-path'),
+  skipPathVar = getParam('skip-path-var') || 'DOWNLOAD_SKIP_PATH',
+  skipVer = isParamPresent('skip-ver'),
+  skipVerVar = getParam('skip-ver-var') || 'DOWNLOAD_SKIP_VER';
 
 const parseUrl = [
   /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
   /^github:([^\/]+)\/([^#]+)(?:#|$)/i,
   /^([^:\/]+)\/([^#]+)(?:#|$)/i
 ];
+
+const isHttp = /^http:\/\//i,
+  isHttps = /^https:\/\//i;
 
 const getRepo = url => {
   if (!url) return null;
@@ -53,12 +63,18 @@ const getRepo = url => {
 
 const getAssetUrlPrefix = () => {
   const url = process.env.npm_package_github || (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
-    result = getRepo(url),
-    host = mirrorHost || process.env[mirrorEnvVar] || 'https://github.com';
-  return (
-    result &&
-    `${host}/${result[1]}/${result[2]}/releases/download/${process.env.npm_package_version}/${prefix}${platform}-${process.arch}-${process.versions.modules}${suffix}`
-  );
+    result = getRepo(url);
+  if (!result) return null;
+  const host = mirrorHost || process.env[mirrorEnvVar] || 'https://github.com';
+  let assetUrl = host;
+  if (!skipPath && !process.env[skipPathVar]) {
+    assetUrl += `/${result[1]}/${result[2]}/releases/download`;
+  }
+  if (!skipVer && !process.env[skipVerVar]) {
+    assetUrl += '/' + process.env.npm_package_version;
+  }
+  assetUrl += `/${prefix}${platform}-${process.arch}-${process.versions.modules}${suffix}`;
+  return assetUrl;
 };
 
 const isDev = async () => {
@@ -108,8 +124,14 @@ const isVerified = async () => {
 
 const get = async url =>
   new Promise((resolve, reject) => {
+    const httpLib = isHttps.test(url) ? https : isHttp.test(url) ? http : null;
+    if (!httpLib) {
+      // local file
+      fsp.readFile(url).then(resolve, reject);
+      return;
+    }
     let buffer = null;
-    https
+    httpLib
       .get(url, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
           get(res.headers.location).then(resolve, reject);
