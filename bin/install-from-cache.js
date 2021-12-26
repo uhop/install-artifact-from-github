@@ -65,8 +65,7 @@ const getAssetUrlPrefix = () => {
   const url = process.env.npm_package_github || (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
     result = getRepo(url);
   if (!result) return null;
-  const host = mirrorHost || process.env[mirrorEnvVar] || 'https://github.com';
-  let assetUrl = host;
+  let assetUrl = mirrorHost || process.env[mirrorEnvVar] || 'https://github.com';
   if (!skipPath && !process.env[skipPathVar]) {
     assetUrl += `/${result[1]}/${result[2]}/releases/download`;
   }
