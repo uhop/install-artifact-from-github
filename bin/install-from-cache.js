@@ -28,7 +28,7 @@ const getPlatform = () => {
 
 const platform = getPlatform(),
   platformArch = process.env.npm_config_platform_arch || process.arch,
-  platformModules = process.env.npm_config_platform_modules || process.versions.modules;
+  platformABI = process.env.npm_config_platform_abi || process.versions.modules;
 
 const isParamPresent = name => process.argv.indexOf('--' + name) > 0;
 
@@ -77,7 +77,7 @@ const getAssetUrlPrefix = () => {
   if (!skipVer && !process.env[skipVerVar]) {
     assetUrl += '/' + process.env.npm_package_version;
   }
-  assetUrl += `/${prefix}${platform}-${platformArch}-${platformModules}${suffix}`;
+  assetUrl += `/${prefix}${platform}-${platformArch}-${platformABI}${suffix}`;
   return assetUrl;
 };
 
@@ -110,8 +110,8 @@ const run = async (cmd, suppressOutput) =>
   });
 
 const isVerified = async () => {
-  if (process.env.npm_config_platform || process.env.npm_config_platform_arch || process.env.npm_config_platform_modules) {
-    console.log(`Fetched for the custom platform "${platform}-${platformArch}-${platformModules}" -- skipping the verification.`);
+  if (process.env.npm_config_platform || process.env.npm_config_platform_arch || process.env.npm_config_platform_abi) {
+    console.log(`Fetched for the custom platform "${platform}-${platformArch}-${platformABI}" -- skipping the verification.`);
     return true;
   }
   try {
