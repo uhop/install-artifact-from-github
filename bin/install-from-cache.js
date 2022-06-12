@@ -12,8 +12,10 @@ const {exec, spawnSync} = require('child_process');
 
 const spawnOptions = {encoding: 'utf8', env: process.env};
 const getPlatform = () => {
-  const platform = process.env.npm_config_platform || process.platform;
-  if (platform !== 'linux' || process.env.npm_config_platform) return platform;
+  let platform = process.env.npm_config_platform;
+  if (platform) return platform;
+  platform = process.platform;
+  if (platform !== 'linux') return platform;
   // detecting musl using algorithm from https://github.com/lovell/detect-libc under Apache License 2.0
   let result = spawnSync('getconf', ['GNU_LIBC_VERSION'], spawnOptions);
   if (!result.status && !result.signal) return platform;
@@ -105,8 +107,10 @@ const run = async (cmd, suppressOutput) =>
   });
 
 const isVerified = async () => {
-  if (process.env.npm_config_platform) return true
-
+  if (process.env.npm_config_platform) {
+    console.log(`Fetched for the custom platform "${process.env.npm_config_platform}" -- skipping the verification.`);
+    return true;
+  }
   try {
     if (process.env.npm_package_scripts_verify_build) {
       await run('npm run verify-build', true);
