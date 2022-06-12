@@ -57,6 +57,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
+- 1.3.1 *added a way to specify a custom build, thx (Grisha Pushkov)[https://github.com/reepush] + a test.*
 - 1.3.0 *enhanced support for custom mirrors.*
 - 1.2.0 *support for NPM >= 7.*
 - 1.1.3 *technical release: updated docs.*
