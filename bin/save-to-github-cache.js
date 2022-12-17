@@ -39,7 +39,7 @@ const io = async (url, options = {}, data) =>
           io(res.headers.location, options, data).then(resolve, reject);
           return;
         }
-        if (res.statusCode != 200) {
+        if (res.statusCode != 200 && res.statusCode != 204) {
           reject(Error(`Status ${res.statusCode} for ${url}`));
           return;
         }
@@ -52,7 +52,7 @@ const io = async (url, options = {}, data) =>
         });
         res.on('end', () => resolve(buffer));
       })
-      .on('error', e => reject(e));
+      .on('error', error => reject(error));
     data && req.write(data);
     req.end();
   });
@@ -114,7 +114,7 @@ const main = async () => {
         compressed
       )
         .then(() => console.log('Uploaded BR.'))
-        .catch(() => console.log('BR has failed to upload.'));
+        .catch(error => console.error('BR has failed to upload:', error));
     })(),
     (async () => {
       if (!zlib.gzip) return null;
@@ -135,13 +135,13 @@ const main = async () => {
         compressed
       )
         .then(() => console.log('Uploaded GZ.'))
-        .catch(() => console.log('GZ has failed to upload.'));
+        .catch(error => console.error('GZ has failed to upload:', error));
     })()
   ]);
   console.log('Done.');
 };
 
-main().catch(e => {
-  console.log('::error::' + ((e && e.message) || 'save-to-github has failed'));
+main().catch(error => {
+  console.log('::error::' + ((error && error.message) || 'save-to-github has failed'));
   process.exit(1);
 });
