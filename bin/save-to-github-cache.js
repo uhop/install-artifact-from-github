@@ -39,7 +39,7 @@ const io = async (url, options = {}, data) =>
           io(res.headers.location, options, data).then(resolve, reject);
           return;
         }
-        if (res.statusCode != 200 && res.statusCode != 204) {
+        if (res.statusCode < 200 && res.statusCode >= 300) {
           reject(Error(`Status ${res.statusCode} for ${url}`));
           return;
         }
