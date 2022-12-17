@@ -50,14 +50,14 @@ const io = async (url, options = {}, data) =>
             buffer = data;
           }
         });
-        res.on('end', () => resolve(buffer));
+        res.on('end', () => resolve({data: buffer, res}));
       })
       .on('error', error => reject(error));
     data && req.write(data);
     req.end();
   });
-const get = async (url, options) => io(url, {...options, method: 'GET'});
-const post = async (url, options, data) => io(url, {...options, method: 'POST'}, data);
+const get = (url, options) => io(url, {...options, method: 'GET'});
+const post = (url, options, data) => io(url, {...options, method: 'POST'}, data);
 
 function url(parts) {
   let result = parts[0] || '';
@@ -86,7 +86,7 @@ const main = async () => {
       auth: OWNER + ':' + TOKEN,
       headers: {Accept: 'application/vnd.github.v3+json', 'User-Agent': 'uhop/install-artifact-from-github'}
     }).then(response => {
-      const data = JSON.parse(response.toString()),
+      const data = JSON.parse(response.data.toString()),
         p = data.upload_url.indexOf('{');
       return p > 0 ? data.upload_url.substr(0, p) : data.upload_url;
     })
@@ -113,7 +113,7 @@ const main = async () => {
         },
         compressed
       )
-        .then(() => console.log('Uploaded BR.'))
+        .then(({res}) => console.log('Uploaded BR:', res.statusCode))
         .catch(error => console.error('BR has failed to upload:', error));
     })(),
     (async () => {
@@ -134,7 +134,7 @@ const main = async () => {
         },
         compressed
       )
-        .then(() => console.log('Uploaded GZ.'))
+        .then(({res}) => console.log('Uploaded GZ:', res.statusCode))
         .catch(error => console.error('GZ has failed to upload:', error));
     })()
   ]);
