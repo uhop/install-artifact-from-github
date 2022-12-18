@@ -29,6 +29,7 @@
   "author": "Eugene Lazutkin <eugene.lazutkin@gmail.com> (https://lazutkin.com/)",
   "license": "BSD-3-Clause",
   "scripts": {
-    "test": "node tests/test-env.js"
+    "test": "node tests/test-env.js",
+    "save-to-github": "save-to-github-cache --artifact package.json"
   }
 }

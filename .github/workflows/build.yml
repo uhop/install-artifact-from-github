@@ -1,0 +1,47 @@
+name: Node.js builds
+
+on:
+  push:
+    tags:
+      - v?[0-9]+.[0-9]+.[0-9]+.[0-9]+\-test
+      - v?[0-9]+.[0-9]+.[0-9]+\-test
+      - v?[0-9]+.[0-9]+\-test
+
+jobs:
+  create-release:
+    name: Create release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        tag_name: ${{github.ref}}
+        release_name: Release ${{github.ref}}
+        draft: false
+        prerelease: false
+
+  build:
+    name: Building
+    needs: create-release
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 19
+    - name: Install the package and run tests
+      env:
+        DEVELOPMENT_SKIP_GETTING_ASSET: true
+      run: |
+        npm i
+    - name: Save to GitHub
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      run: npm run save-to-github
