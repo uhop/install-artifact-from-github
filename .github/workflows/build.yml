@@ -13,30 +13,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Create release
-      uses: actions/create-release@v1
+      uses: elgohr/Github-Release-Action@v4
       env:
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       with:
-        tag_name: ${{github.ref}}
-        release_name: Release ${{github.ref}}
-        draft: false
-        prerelease: false
-
-  build:
-    name: Building
-    needs: create-release
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
+        title: 'Release ${{github.ref}}'
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 19
-    - name: Install the package and run tests
+    - name: Install the package
       env:
         DEVELOPMENT_SKIP_GETTING_ASSET: true
       run: |
