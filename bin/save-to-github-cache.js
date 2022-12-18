@@ -142,6 +142,6 @@ const main = async () => {
 };
 
 main().catch(error => {
-  console.log('::error::' + ((error && error.message) || 'save-to-github has failed'));
+  console.log('::error::' + ((error && error.message) || 'save-to-github-cache has failed'));
   process.exit(1);
 });
