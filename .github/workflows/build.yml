@@ -18,11 +18,8 @@ jobs:
       with:
         submodules: true
     - name: Create release
-      uses: elgohr/Github-Release-Action@v4
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      with:
-        title: 'Release ${{github.ref}}'
+      run: |
+        hub release create -m "Release ${{github.ref}}" "${{github.ref}}"
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
