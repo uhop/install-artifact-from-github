@@ -19,7 +19,7 @@ jobs:
         submodules: true
     - name: Create release
       env:
-        GH_TOKEN: ${{secrets.RELEASE_TOKEN}}
+        GH_TOKEN: ${{github.token}}
       run: |
         REF=${{github.ref}}
         TAG=${REF#"refs/tags/"}
