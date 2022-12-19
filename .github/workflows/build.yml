@@ -18,8 +18,12 @@ jobs:
       with:
         submodules: true
     - name: Create release
+      env:
+        GITHUB_TOKEN: ${{secrets.RELEASE_TOKEN}}
       run: |
-        hub release create -m "Release ${{github.ref}}" "${{github.ref}}"
+        REF=${{github.ref}}
+        TAG=${REF#"refs/tags/"}
+        hub release create -m "Release ${TAG}" "${TAG}"
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
