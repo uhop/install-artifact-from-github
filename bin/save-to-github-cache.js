@@ -75,7 +75,7 @@ const post = (url, options, data) => io(url, {...options, method: 'POST'}, data)
 
 const url = (parts, ...args) => {
   let result = parts[0] || '';
-  for (let i = 0; i < args.length;) {
+  for (let i = 0; i < args.length; ) {
     result += encodeURIComponent(args[i]) + parts[++i];
   }
   return new URL(result);
@@ -130,12 +130,13 @@ const main = async () => {
       return post(
         withParams(uploadUrl, {name, label}),
         {
-          auth: OWNER + ':' + TOKEN,
+          auth: TOKEN ? OWNER + ':' + TOKEN : null,
           headers: {
             Accept: 'application/vnd.github.v3+json',
             'Content-Type': 'application/brotli',
             'Content-Length': compressed.length,
-            'User-Agent': 'uhop/install-artifact-from-github'
+            'User-Agent': 'uhop/install-artifact-from-github',
+            Authorization: !TOKEN && PERSONAL_TOKEN ? 'Bearer ' + PERSONAL_TOKEN : null
           }
         },
         compressed
@@ -151,12 +152,13 @@ const main = async () => {
       return post(
         withParams(uploadUrl, {name, label}),
         {
-          auth: OWNER + ':' + TOKEN,
+          auth: TOKEN ? OWNER + ':' + TOKEN : null,
           headers: {
             Accept: 'application/vnd.github.v3+json',
             'Content-Type': 'application/gzip',
             'Content-Length': compressed.length,
-            'User-Agent': 'uhop/install-artifact-from-github'
+            'User-Agent': 'uhop/install-artifact-from-github',
+            Authorization: !TOKEN && PERSONAL_TOKEN ? 'Bearer ' + PERSONAL_TOKEN : null
           }
         },
         compressed
