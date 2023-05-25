@@ -30,9 +30,23 @@ const getParam = (name, defaultValue = '') => {
   return defaultValue;
 };
 
+const cleanOptions = options => {
+  const result = {};
+  for (const [key, value] of Object.entries(options)) {
+    if (value === undefined || value === null) continue;
+    if (key === 'headers') {
+      result.headers = cleanOptions(value);
+      continue;
+    }
+    result[key] = value;
+  }
+  return result;
+};
+
 const io = async (url, options = {}, data) =>
   new Promise((resolve, reject) => {
     let buffer = null;
+    options = cleanOptions(options);
     const req = https
       .request(url, options, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
@@ -59,13 +73,21 @@ const io = async (url, options = {}, data) =>
 const get = (url, options) => io(url, {...options, method: 'GET'});
 const post = (url, options, data) => io(url, {...options, method: 'POST'}, data);
 
-function url(parts) {
+const url = (parts, ...args) => {
   let result = parts[0] || '';
-  for (let i = 1; i < parts.length; ++i) {
-    result += encodeURIComponent(arguments[i]) + parts[i];
+  for (let i = 0; i < args.length;) {
+    result += encodeURIComponent(args[i]) + parts[++i];
+  }
+  return new URL(result);
+};
+
+const withParams = (url, params) => {
+  const result = new URL(url);
+  for (const [key, value] of Object.entries(params)) {
+    result.searchParams.append(key, value);
   }
   return result;
-}
+};
 
 const artifactPath = getParam('artifact'),
   prefix = getParam('prefix'),
@@ -74,7 +96,8 @@ const artifactPath = getParam('artifact'),
 const main = async () => {
   const [OWNER, REPO] = process.env.GITHUB_REPOSITORY.split('/'),
     TAG = /^refs\/tags\/(.*)$/.exec(process.env.GITHUB_REF)[1],
-    TOKEN = process.env.GITHUB_TOKEN;
+    TOKEN = process.env.GITHUB_TOKEN,
+    PERSONAL_TOKEN = process.env.PERSONAL_TOKEN;
 
   const fileName = `${prefix}${platform}-${process.arch}-${process.versions.modules}${suffix}`;
 
@@ -83,8 +106,12 @@ const main = async () => {
   const [data, uploadUrl] = await Promise.all([
     fsp.readFile(path.normalize(artifactPath)),
     get(url`https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${TAG}`, {
-      auth: OWNER + ':' + TOKEN,
-      headers: {Accept: 'application/vnd.github.v3+json', 'User-Agent': 'uhop/install-artifact-from-github'}
+      auth: TOKEN ? OWNER + ':' + TOKEN : null,
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'uhop/install-artifact-from-github',
+        Authorization: !TOKEN && PERSONAL_TOKEN ? 'Bearer ' + PERSONAL_TOKEN : null
+      }
     }).then(response => {
       const data = JSON.parse(response.data.toString()),
         p = data.upload_url.indexOf('{');
@@ -101,7 +128,7 @@ const main = async () => {
         name = fileName + '.br',
         label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, brotli).`;
       return post(
-        uploadUrl + '?' + url`name=${name}&label=${label}`,
+        withParams(uploadUrl, {name, label}),
         {
           auth: OWNER + ':' + TOKEN,
           headers: {
@@ -122,7 +149,7 @@ const main = async () => {
         name = fileName + '.gz',
         label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, gzip).`;
       return post(
-        uploadUrl + '?' + url`name=${name}&label=${label}`,
+        withParams(uploadUrl, {name, label}),
         {
           auth: OWNER + ':' + TOKEN,
           headers: {
