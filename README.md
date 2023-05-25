@@ -57,6 +57,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
+- 1.3.3 *minor refactor, added support for a personal token.*
 - 1.3.2 *added support for the 204 response and error logging.*
 - 1.3.1 *added a way to specify a custom build, thx [Grisha Pushkov](https://github.com/reepush) + a test.*
 - 1.3.0 *enhanced support for custom mirrors.*
