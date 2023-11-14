@@ -140,7 +140,7 @@ const get = async url =>
     }
     let buffer = null;
     httpLib
-      .get(url, res => {
+      .get(url, { agent: false }, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
           get(res.headers.location).then(resolve, reject);
           return;
