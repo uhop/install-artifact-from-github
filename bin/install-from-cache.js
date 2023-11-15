@@ -92,7 +92,7 @@ const isDev = async () => {
   return false;
 };
 
-const run = async (cmd, suppressOutput) =>
+const run = (cmd, suppressOutput) =>
   new Promise((resolve, reject) => {
     const p = exec(cmd);
     let closed = false;
@@ -130,7 +130,7 @@ const isVerified = async () => {
   return true;
 };
 
-const get = async url =>
+const get = url =>
   new Promise((resolve, reject) => {
     const httpLib = isHttps.test(url) ? https : isHttp.test(url) ? http : null;
     if (!httpLib) {
@@ -140,7 +140,7 @@ const get = async url =>
     }
     let buffer = null;
     httpLib
-      .get(url, res => {
+      .get(url, {agent: false}, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
           get(res.headers.location).then(resolve, reject);
           return;
@@ -158,7 +158,8 @@ const get = async url =>
         });
         res.on('end', () => resolve(buffer));
       })
-      .on('error', e => reject(e));
+      .on('error', e => reject(e))
+      .end();
   });
 
 const write = async (name, data) => {
