@@ -43,7 +43,7 @@ const cleanOptions = options => {
   return result;
 };
 
-const io = async (url, options = {}, data) =>
+const io = (url, options = {}, data) =>
   new Promise((resolve, reject) => {
     let buffer = null;
     options = cleanOptions(options);
@@ -70,8 +70,8 @@ const io = async (url, options = {}, data) =>
     data && req.write(data);
     req.end();
   });
-const get = (url, options) => io(url, {...options, method: 'GET'});
-const post = (url, options, data) => io(url, {...options, method: 'POST'}, data);
+const get = (url, options) => io(url, {agent: false, ...options, method: 'GET'});
+const post = (url, options, data) => io(url, {agent: false, ...options, method: 'POST'}, data);
 
 const url = (parts, ...args) => {
   let result = parts[0] || '';
