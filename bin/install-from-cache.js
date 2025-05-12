@@ -224,6 +224,18 @@ const main = async () => {
         // squelch
       }
     }
+    // let's try uncompressed
+    if (!copied) {
+      try {
+        console.log(`Trying ${prefix} ...`);
+        const artifact = await get(prefix);
+        console.log(`Writing to ${artifactPath} ...`);
+        await write(artifactPath, artifact);
+        copied = true;
+      } catch (e) {
+        // squelch
+      }
+    }
     // verify the install
     if (copied && (await isVerified())) return console.log('Done.');
   }
