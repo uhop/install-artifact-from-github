@@ -57,6 +57,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
+- 1.4.0 *added support for uncompresed artifacts and selective compression format.*
 - 1.3.5 *propagated the previous timeout fix to the saving utility.*
 - 1.3.4 *minor fixes + a timeout fix: use a new default agent for GET. Thx, [Laura Hausmann](https://github.com/zotanmew).*
 - 1.3.3 *minor refactor, added support for a personal token.*
