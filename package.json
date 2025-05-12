@@ -28,6 +28,6 @@
   "license": "BSD-3-Clause",
   "scripts": {
     "test": "node tests/test-env.js",
-    "save-to-github": "node bin/save-to-github-cache --artifact package.json"
+    "save-to-github": "node bin/save-to-github-cache --artifact package.json --format br,gz,none"
   }
 }
