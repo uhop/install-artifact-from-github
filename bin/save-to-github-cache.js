@@ -2,6 +2,7 @@
 
 'use strict';
 
+const {EOL} = require('os');
 const {promises: fsp} = require('fs');
 const path = require('path');
 const zlib = require('zlib');
@@ -91,7 +92,12 @@ const withParams = (url, params) => {
 
 const artifactPath = getParam('artifact'),
   prefix = getParam('prefix'),
-  suffix = getParam('suffix');
+  suffix = getParam('suffix'),
+  format = getParam('format', 'br'),
+  requestedFormats = new Set(...format.toLowerCase().split(/\s*,\s*/)),
+  skipBrotli = !zlib.brotliCompress || !requestedFormats.has('br'),
+  skipGzip = !zlib.gzip || !requestedFormats.has('gz'),
+  skipUncompressed = !requestedFormats.has('none');
 
 const main = async () => {
   const [OWNER, REPO] = process.env.GITHUB_REPOSITORY.split('/'),
@@ -119,54 +125,52 @@ const main = async () => {
     })
   ]);
 
+  const postArtifact = (name, label, data, contentType = 'application/octet-stream') =>
+    post(
+      withParams(uploadUrl, {name, label}),
+      {
+        auth: TOKEN ? OWNER + ':' + TOKEN : null,
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': contentType,
+          'Content-Length': data.length,
+          'User-Agent': 'uhop/install-artifact-from-github',
+          Authorization: !TOKEN && PERSONAL_TOKEN ? 'Bearer ' + PERSONAL_TOKEN : null
+        }
+      },
+      data
+    );
+
   console.log('Compressing and uploading ...');
 
   await Promise.all([
     (async () => {
-      if (!zlib.brotliCompress) return null;
+      if (skipBrotli) return null;
       const compressed = await promisify(zlib.brotliCompress)(data, {params: {[zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY}}),
         name = fileName + '.br',
         label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, brotli).`;
-      return post(
-        withParams(uploadUrl, {name, label}),
-        {
-          auth: TOKEN ? OWNER + ':' + TOKEN : null,
-          headers: {
-            Accept: 'application/vnd.github.v3+json',
-            'Content-Type': 'application/brotli',
-            'Content-Length': compressed.length,
-            'User-Agent': 'uhop/install-artifact-from-github',
-            Authorization: !TOKEN && PERSONAL_TOKEN ? 'Bearer ' + PERSONAL_TOKEN : null
-          }
-        },
-        compressed
-      )
+      return postArtifact(name, label, compressed, 'application/brotli')
         .then(({res}) => console.log('Uploaded BR:', res.statusCode))
         .catch(error => console.error('BR has failed to upload:', error));
     })(),
     (async () => {
-      if (!zlib.gzip) return null;
+      if (skipGzip) return null;
       const compressed = await promisify(zlib.gzip)(data, {level: zlib.constants.Z_BEST_COMPRESSION}),
         name = fileName + '.gz',
         label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, gzip).`;
-      return post(
-        withParams(uploadUrl, {name, label}),
-        {
-          auth: TOKEN ? OWNER + ':' + TOKEN : null,
-          headers: {
-            Accept: 'application/vnd.github.v3+json',
-            'Content-Type': 'application/gzip',
-            'Content-Length': compressed.length,
-            'User-Agent': 'uhop/install-artifact-from-github',
-            Authorization: !TOKEN && PERSONAL_TOKEN ? 'Bearer ' + PERSONAL_TOKEN : null
-          }
-        },
-        compressed
-      )
+      return postArtifact(name, label, compressed, 'application/gzip')
         .then(({res}) => console.log('Uploaded GZ:', res.statusCode))
         .catch(error => console.error('GZ has failed to upload:', error));
+    })(),
+    (async () => {
+      if (skipUncompressed) return null;
+      const label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, uncompressed).`;
+      return postArtifact(fileName, label, data)
+        .then(({res}) => console.log('Uploaded Uncompressed:', res.statusCode))
+        .catch(error => console.error('Uncompressed has failed to upload:', error));
     })()
   ]);
+  if (process.env.GITHUB_ENV) await fsp.appendFile(process.env.GITHUB_ENV, 'CREATED_ASSET_NAME=' + fileName + EOL);
   console.log('Done.');
 };
 
