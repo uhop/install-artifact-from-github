@@ -9,6 +9,7 @@ const {promisify} = require('util');
 const http = require('http');
 const https = require('https');
 const {exec, spawnSync} = require('child_process');
+const {ProxyAgent} = require('proxy-agent');
 
 const spawnOptions = {encoding: 'utf8', env: process.env};
 const getPlatform = () => {
@@ -140,7 +141,7 @@ const get = url =>
     }
     let buffer = null;
     httpLib
-      .get(url, {agent: false}, res => {
+      .get(url, {agent: new ProxyAgent()}, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
           get(res.headers.location).then(resolve, reject);
           return;

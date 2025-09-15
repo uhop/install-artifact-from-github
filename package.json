@@ -29,5 +29,8 @@
   "scripts": {
     "test": "node tests/test-env.js",
     "save-to-github": "node bin/save-to-github-cache --artifact package.json --format br,gz,none"
+  },
+  "dependencies": {
+    "proxy-agent": "^6.5.0"
   }
 }
