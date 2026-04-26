@@ -12,6 +12,9 @@ on:
       - '*-test'
       - 'v*-test'
 
+permissions:
+  contents: write   # gh release create + asset upload
+
 jobs:
   release-dogfood:
     name: Create release and upload artifact
