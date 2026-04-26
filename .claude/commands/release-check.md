@@ -5,7 +5,7 @@ description: Pre-release verification checklist for install-artifact-from-github
 # Release Check
 
 Run through this checklist before tagging a new release. This package is a
-zero-dependency, CommonJS, two-binary CLI helper. The deliverables are
+zero-dependency, ESM-only, two-binary CLI helper. The deliverables are
 `bin/install-from-cache.js` and `bin/save-to-github-cache.js` — there is no
 public module surface, no build step, and primary consumer is `node-re2`.
 
