@@ -2,3 +2,5 @@ node_modules/
 .AppleDouble
 
 /scripts/save-local.sh
+
+.claude/settings.local.json

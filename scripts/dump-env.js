@@ -1,9 +1,8 @@
-'use strict';
-
 const prefix = /^npm/i;
 
 const main = () => {
-  const npmVars = [], others = [];
+  const npmVars = [],
+    others = [];
 
   for (const name in process.env) {
     if (prefix.test(name)) {

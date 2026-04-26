@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
-'use strict';
+import {EOL} from 'node:os';
+import {promises as fsp} from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import {promisify} from 'node:util';
+import http from 'node:http';
+import https from 'node:https';
+import {spawnSync} from 'node:child_process';
 
-const {EOL} = require('os');
-const {promises: fsp} = require('fs');
-const path = require('path');
-const zlib = require('zlib');
-const {promisify} = require('util');
-const https = require('https');
-const {spawnSync} = require('child_process');
+const isHttp = /^http:\/\//i;
 
+/** @type {import('child_process').SpawnSyncOptions} */
 const spawnOptions = {encoding: 'utf8', env: process.env};
 const getPlatform = () => {
   const platform = process.platform;
@@ -48,7 +50,8 @@ const io = (url, options = {}, data) =>
   new Promise((resolve, reject) => {
     let buffer = null;
     options = cleanOptions(options);
-    const req = https
+    const httpLib = isHttp.test(typeof url === 'string' ? url : url.href) ? http : https;
+    const req = httpLib
       .request(url, options, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
           io(res.headers.location, options, data).then(resolve, reject);
@@ -73,14 +76,6 @@ const io = (url, options = {}, data) =>
   });
 const get = (url, options) => io(url, {agent: false, ...options, method: 'GET'});
 const post = (url, options, data) => io(url, {agent: false, ...options, method: 'POST'}, data);
-
-const url = (parts, ...args) => {
-  let result = parts[0] || '';
-  for (let i = 0; i < args.length; ) {
-    result += encodeURIComponent(args[i]) + parts[++i];
-  }
-  return new URL(result);
-};
 
 const withParams = (url, params) => {
   const result = new URL(url);
@@ -109,9 +104,11 @@ const main = async () => {
 
   console.log('Preparing artifact', fileName, '...');
 
+  const apiBase = process.env.GITHUB_API_URL || 'https://api.github.com';
+  const releaseUrl = new URL(`/repos/${encodeURIComponent(OWNER)}/${encodeURIComponent(REPO)}/releases/tags/${encodeURIComponent(TAG)}`, apiBase);
   const [data, uploadUrl] = await Promise.all([
     fsp.readFile(path.normalize(artifactPath)),
-    get(url`https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${TAG}`, {
+    get(releaseUrl, {
       auth: TOKEN ? OWNER + ':' + TOKEN : null,
       headers: {
         Accept: 'application/vnd.github.v3+json',

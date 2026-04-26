@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
-'use strict';
+import {promises as fsp} from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import {promisify} from 'node:util';
+import http from 'node:http';
+import https from 'node:https';
+import {exec, spawnSync} from 'node:child_process';
 
-const {promises: fsp} = require('fs');
-const path = require('path');
-const zlib = require('zlib');
-const {promisify} = require('util');
-const http = require('http');
-const https = require('https');
-const {exec, spawnSync} = require('child_process');
-
+/** @type {import('child_process').SpawnSyncOptions} */
 const spawnOptions = {encoding: 'utf8', env: process.env};
 const getPlatform = () => {
   let platform = process.env.npm_config_platform;
@@ -173,7 +172,7 @@ const main = async () => {
       // for NPM >= 7
       try {
         // read the package info
-        const pkg = JSON.parse(await fsp.readFile(process.env.npm_package_json));
+        const pkg = JSON.parse(await fsp.readFile(process.env.npm_package_json, 'utf8'));
         // populate necessary environment variables locally
         process.env.npm_package_github = pkg.github || '';
         process.env.npm_package_repository_type = (pkg.repository && pkg.repository.type) || '';
