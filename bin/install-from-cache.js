@@ -48,7 +48,12 @@ const artifactPath = getParam('artifact'),
   skipVer = isParamPresent('skip-ver'),
   skipVerVar = getParam('skip-ver-var') || 'DOWNLOAD_SKIP_VER',
   agentDirect = getParam('agent'),
-  agentEnvVar = getParam('agent-var') || 'DOWNLOAD_AGENT';
+  agentEnvVar = getParam('agent-var') || 'DOWNLOAD_AGENT',
+  napiDirect = getParam('napi'),
+  napiEnvVar = getParam('napi-var') || 'DOWNLOAD_NAPI';
+
+const napiLevel = napiDirect || process.env[napiEnvVar] || process.env.npm_config_platform_napi || '';
+const abiSlot = napiLevel ? `napi-v${napiLevel}` : platformABI;
 
 const parseUrl = [
   /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
@@ -79,7 +84,7 @@ const getAssetUrlPrefix = () => {
   if (!skipVer && !process.env[skipVerVar]) {
     assetUrl += '/' + process.env.npm_package_version;
   }
-  assetUrl += `/${prefix}${platform}-${platformArch}-${platformABI}${suffix}`;
+  assetUrl += `/${prefix}${platform}-${platformArch}-${abiSlot}${suffix}`;
   return assetUrl;
 };
 

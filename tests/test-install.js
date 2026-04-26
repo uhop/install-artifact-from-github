@@ -275,6 +275,77 @@ test('install-from-cache: DOWNLOAD_AGENT pointing at a bogus path degrades grace
   }
 });
 
+test('install-from-cache: --napi switches the URL slot from ABI to napi-v<level>', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  try {
+    const napiAsset = `${PREFIX}${PLATFORM}-${ARCH}-napi-v8${SUFFIX}`;
+    const napiPath = `/owner/repo/releases/download/${VERSION}/${napiAsset}`;
+    const payload = Buffer.from('napi-routed-binary');
+    server.setAsset(napiPath + '.br', await brotli(payload));
+    // ABI-named asset deliberately absent — proving the bin asks for the N-API path.
+
+    const r = await runBin('install-from-cache.js', {
+      cwd: sandbox.dir,
+      args: ['--artifact', 'out/artifact.bin', '--prefix', PREFIX, '--suffix', SUFFIX, '--napi', '8'],
+      env: installEnv(server.url)
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'N-API artifact downloaded');
+    t.ok(r.stdout.includes('napi-v8'), 'log line shows the N-API URL was attempted');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('install-from-cache: --napi-var indirection reads project-specific env var', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  try {
+    const napiAsset = `${PREFIX}${PLATFORM}-${ARCH}-napi-v9${SUFFIX}`;
+    const napiPath = `/owner/repo/releases/download/${VERSION}/${napiAsset}`;
+    const payload = Buffer.from('napi-via-custom-envvar');
+    server.setAsset(napiPath + '.br', await brotli(payload));
+
+    const r = await runBin('install-from-cache.js', {
+      cwd: sandbox.dir,
+      args: ['--artifact', 'out/artifact.bin', '--prefix', PREFIX, '--suffix', SUFFIX, '--napi-var', 'MYPKG_NAPI'],
+      env: {
+        ...installEnv(server.url),
+        MYPKG_NAPI: '9',
+        // Default DOWNLOAD_NAPI must be ignored when --napi-var is set.
+        DOWNLOAD_NAPI: '999'
+      }
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'project-specific env var routed the request');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('install-from-cache: --napi missing → ABI mode unchanged', async t => {
+  // Regression: existing behavior must be byte-identical when no --napi is passed.
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  try {
+    const payload = Buffer.from('still-uses-abi-slot');
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+
+    const r = await runInstall(server, sandbox);
+    t.equal(r.code, 0, 'bin exited 0');
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'ABI-named asset was downloaded as before');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
 test('install-from-cache: missing repo info → no download, falls back', async t => {
   const server = await startMockServer();
   const sandbox = await makeSandbox();

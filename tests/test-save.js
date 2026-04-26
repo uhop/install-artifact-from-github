@@ -100,6 +100,26 @@ test('save-to-github-cache: filename encodes platform + arch + abi', async t => 
   }
 });
 
+test('save-to-github-cache: --napi puts napi-v<level> in the upload filename', async t => {
+  const server = await startMockServer();
+  const payload = Buffer.from('napi-upload');
+  const fixture = await writeArtifact(payload);
+  try {
+    const r = await runBin('save-to-github-cache.js', {
+      args: ['--artifact', fixture.file, '--prefix', PREFIX, '--suffix', SUFFIX, '--format', 'br', '--napi', '8'],
+      env: saveEnv(server.url)
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    t.equal(server.recorded.length, 1, 'one upload');
+    const name = server.recorded[0].name;
+    t.ok(name.includes('-napi-v8'), `filename contains napi-v8 slot (got ${name})`);
+    t.notOk(/-\d+\.bin\.br$/.test(name), `filename does NOT contain a numeric ABI slot (got ${name})`);
+  } finally {
+    await server.close();
+    await fixture.cleanup();
+  }
+});
+
 test('save-to-github-cache: API 404 surfaces an error and exits non-zero', async t => {
   const server = await startMockServer({
     releaseHandler(_req, res) {

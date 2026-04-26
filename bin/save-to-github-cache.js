@@ -92,7 +92,12 @@ const artifactPath = getParam('artifact'),
   requestedFormats = new Set(format.toLowerCase().split(/\s*,\s*/)),
   skipBrotli = !zlib.brotliCompress || !requestedFormats.has('br'),
   skipGzip = !zlib.gzip || !requestedFormats.has('gz'),
-  skipUncompressed = !requestedFormats.has('none');
+  skipUncompressed = !requestedFormats.has('none'),
+  napiDirect = getParam('napi'),
+  napiEnvVar = getParam('napi-var') || 'DOWNLOAD_NAPI';
+
+const napiLevel = napiDirect || process.env[napiEnvVar] || '';
+const abiSlot = napiLevel ? `napi-v${napiLevel}` : process.versions.modules;
 
 const main = async () => {
   const [OWNER, REPO] = process.env.GITHUB_REPOSITORY.split('/'),
@@ -100,7 +105,7 @@ const main = async () => {
     TOKEN = process.env.GITHUB_TOKEN,
     PERSONAL_TOKEN = process.env.PERSONAL_TOKEN;
 
-  const fileName = `${prefix}${platform}-${process.arch}-${process.versions.modules}${suffix}`;
+  const fileName = `${prefix}${platform}-${process.arch}-${abiSlot}${suffix}`;
 
   console.log('Preparing artifact', fileName, '...');
 
@@ -145,7 +150,7 @@ const main = async () => {
       if (skipBrotli) return null;
       const compressed = await promisify(zlib.brotliCompress)(data, {params: {[zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY}}),
         name = fileName + '.br',
-        label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, brotli).`;
+        label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${abiSlot}, brotli).`;
       return postArtifact(name, label, compressed, 'application/brotli')
         .then(({res}) => console.log('Uploaded BR:', res.statusCode))
         .catch(error => console.error('BR has failed to upload:', error));
@@ -154,14 +159,14 @@ const main = async () => {
       if (skipGzip) return null;
       const compressed = await promisify(zlib.gzip)(data, {level: zlib.constants.Z_BEST_COMPRESSION}),
         name = fileName + '.gz',
-        label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, gzip).`;
+        label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${abiSlot}, gzip).`;
       return postArtifact(name, label, compressed, 'application/gzip')
         .then(({res}) => console.log('Uploaded GZ:', res.statusCode))
         .catch(error => console.error('GZ has failed to upload:', error));
     })(),
     (async () => {
       if (skipUncompressed) return null;
-      const label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${process.versions.modules}, uncompressed).`;
+      const label = `Binary artifact: ${artifactPath} (${platform}, ${process.arch}, ${abiSlot}, uncompressed).`;
       return postArtifact(fileName, label, data)
         .then(({res}) => console.log('Uploaded Uncompressed:', res.statusCode))
         .catch(error => console.error('Uncompressed has failed to upload:', error));
