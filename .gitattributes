@@ -1,0 +1,4 @@
+# Normalize all text files to LF in the working tree on every platform.
+# Prevents Prettier (and other LF-strict tools) from failing on Windows CI
+# runners where Git would otherwise check out CRLF.
+* text=auto eol=lf
