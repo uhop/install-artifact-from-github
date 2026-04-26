@@ -33,24 +33,29 @@ public module surface, no build step, and primary consumer is `node-re2`.
    - `repository`, `bugs`, `homepage`, `author`, `license` are accurate.
    - `dependencies` is empty (zero-dep policy).
 5. **LICENSE** copyright year includes the current year.
-6. **Regenerate the lockfile:**
+6. **Sweep dependencies for staleness.** Run `npm outdated`. Bump any
+   devDep with a newer major or minor available and verify `npm run js-check`
+   still passes. (This package ships zero runtime deps, so the sweep is
+   devDep-only — but it still keeps Dependabot quiet.)
+7. **Regenerate the lockfile:**
    ```
    npm install
    ```
-7. **Full check matrix** — all must pass cleanly:
+8. **Full check matrix** — all must pass cleanly:
    ```
    npm run lint
    npm run js-check
    npm test
    ```
-8. **Dry-run publish** to verify tarball contents:
+9. **Dry-run publish** to verify tarball contents:
    ```
    npm pack --dry-run
    ```
    Confirm NONE of these appear: `tests/`, `wiki/`, `.github/`, `.claude/`,
    `tsconfig*.json`, `scripts/`.
-9. **Stop and report** — surface:
-   - Chosen version bump and the diff summary since the last tag.
-   - Test / lint / pack-dry-run results.
-   - Any unresolved issue flagged during the walkthrough.
-     Do **not** commit, tag, or publish without explicit user confirmation.
+10. **Stop and report** — surface:
+
+- Chosen version bump and the diff summary since the last tag.
+- Test / lint / pack-dry-run results.
+- Any unresolved issue flagged during the walkthrough.
+  Do **not** commit, tag, or publish without explicit user confirmation.
