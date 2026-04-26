@@ -1,39 +1,37 @@
-name: Node.js builds
+name: Release dogfood (test tags)
+
+# Fires only on `*-test` tags so the maintainer can rehearse a release without
+# touching real semver tags. Creates a GitHub Release for the tag and exercises
+# `save-to-github-cache` by uploading `package.json` as a synthetic artifact —
+# end-to-end smoke test against the real GitHub Releases API. This is what the
+# package's >1M weekly users actually hit, so a real-API check matters.
 
 on:
   push:
     tags:
-      - v?[0-9]+.[0-9]+.[0-9]+.[0-9]+\-test
-      - v?[0-9]+.[0-9]+.[0-9]+\-test
-      - v?[0-9]+.[0-9]+\-test
+      - '*-test'
+      - 'v*-test'
 
 jobs:
-  create-release:
-    name: Create release
+  release-dogfood:
+    name: Create release and upload artifact
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Create release
-      env:
-        GH_TOKEN: ${{github.token}}
-      run: |
-        REF=${{github.ref}}
-        TAG=${REF#"refs/tags/"}
-        gh release create -t "Release ${TAG}" -n "" "${{github.ref}}"
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 19
-    - name: Install the package
-      env:
-        DEVELOPMENT_SKIP_GETTING_ASSET: true
-      run: |
-        npm i
-    - name: Save to GitHub
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      run: npm run save-to-github
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Create release
+        env:
+          GH_TOKEN: ${{github.token}}
+        run: gh release create -t "Release ${GITHUB_REF#refs/tags/}" -n "" "${{github.ref}}"
+      - name: Install (skip artifact download)
+        env:
+          DEVELOPMENT_SKIP_GETTING_ASSET: true
+        run: npm ci
+      - name: Save artifact to GitHub
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: npm run save-to-github
