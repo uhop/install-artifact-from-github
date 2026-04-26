@@ -1,11 +1,15 @@
 import test from 'tape-six';
 import {promises as fsp} from 'node:fs';
 import path from 'node:path';
+import url from 'node:url';
 import zlib from 'node:zlib';
 import {promisify} from 'node:util';
 
 import {startMockServer} from './helpers/mock-server.js';
 import {runBin, makeSandbox} from './helpers/run-bin.js';
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+const RECORDING_AGENT = path.join(__dirname, 'fixtures', 'recording-agent.js');
 
 const brotli = promisify(zlib.brotliCompress);
 const gzip = promisify(zlib.gzip);
@@ -163,6 +167,108 @@ test('install-from-cache: DEVELOPMENT_SKIP_GETTING_ASSET short-circuits the down
       exists = false;
     }
     t.notOk(exists, 'no artifact written in dev mode');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('install-from-cache: DOWNLOAD_AGENT loads a custom agent and routes requests through it', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  const recordPath = path.join(sandbox.dir, 'agent-calls.jsonl');
+  try {
+    const payload = Buffer.from('routed-via-custom-agent');
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+
+    const r = await runInstall(server, sandbox, {
+      DOWNLOAD_AGENT: RECORDING_AGENT,
+      RECORD_PATH: recordPath
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'artifact still downloaded correctly');
+
+    const log = await fsp.readFile(recordPath, 'utf8');
+    const entries = log.trim().split('\n').map(JSON.parse);
+    t.ok(entries.length >= 1, `recording agent saw ≥1 request (got ${entries.length})`);
+    t.ok(
+      entries.some(e => typeof e.path === 'string' && e.path.endsWith(ASSET + '.br')),
+      'recording agent saw the .br asset request'
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('install-from-cache: --agent flag overrides the env var', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  const recordPath = path.join(sandbox.dir, 'agent-calls.jsonl');
+  try {
+    const payload = Buffer.from('routed-via-flag');
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+
+    const r = await runBin('install-from-cache.js', {
+      cwd: sandbox.dir,
+      args: ['--artifact', 'out/artifact.bin', '--prefix', PREFIX, '--suffix', SUFFIX, '--agent', RECORDING_AGENT],
+      env: {...installEnv(server.url), RECORD_PATH: recordPath}
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'artifact downloaded via flag-supplied agent');
+    const entries = (await fsp.readFile(recordPath, 'utf8')).trim().split('\n').map(JSON.parse);
+    t.ok(entries.length >= 1, 'recording agent saw the request');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('install-from-cache: --agent-var picks the env var name (project-namespacing)', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  const recordPath = path.join(sandbox.dir, 'agent-calls.jsonl');
+  try {
+    const payload = Buffer.from('routed-via-custom-envvar');
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+
+    const r = await runBin('install-from-cache.js', {
+      cwd: sandbox.dir,
+      args: ['--artifact', 'out/artifact.bin', '--prefix', PREFIX, '--suffix', SUFFIX, '--agent-var', 'MYPROJECT_AGENT'],
+      env: {
+        ...installEnv(server.url),
+        MYPROJECT_AGENT: RECORDING_AGENT,
+        RECORD_PATH: recordPath,
+        // Default DOWNLOAD_AGENT must NOT be consulted when --agent-var is set.
+        DOWNLOAD_AGENT: '/nonexistent/should-not-be-loaded.js'
+      }
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    t.notOk(r.stderr.includes('Failed to load'), 'no fallback warning — DOWNLOAD_AGENT was correctly ignored');
+    const entries = (await fsp.readFile(recordPath, 'utf8')).trim().split('\n').map(JSON.parse);
+    t.ok(entries.length >= 1, 'project-specific env var routed the request');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('install-from-cache: DOWNLOAD_AGENT pointing at a bogus path degrades gracefully', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  try {
+    const payload = Buffer.from('still-works-without-agent');
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+
+    const r = await runInstall(server, sandbox, {
+      DOWNLOAD_AGENT: '/nonexistent/path/to/agent.js'
+    });
+    t.equal(r.code, 0, 'bin still exited 0');
+    t.ok(r.stderr.includes('Failed to load download agent'), 'logged the loader failure to stderr');
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'install still succeeded with default agent');
   } finally {
     await server.close();
     await sandbox.cleanup();

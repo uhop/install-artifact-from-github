@@ -2,6 +2,7 @@
 
 import {promises as fsp} from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import zlib from 'node:zlib';
 import {promisify} from 'node:util';
 import http from 'node:http';
@@ -45,7 +46,9 @@ const artifactPath = getParam('artifact'),
   skipPath = isParamPresent('skip-path'),
   skipPathVar = getParam('skip-path-var') || 'DOWNLOAD_SKIP_PATH',
   skipVer = isParamPresent('skip-ver'),
-  skipVerVar = getParam('skip-ver-var') || 'DOWNLOAD_SKIP_VER';
+  skipVerVar = getParam('skip-ver-var') || 'DOWNLOAD_SKIP_VER',
+  agentDirect = getParam('agent'),
+  agentEnvVar = getParam('agent-var') || 'DOWNLOAD_AGENT';
 
 const parseUrl = [
   /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
@@ -129,6 +132,19 @@ const isVerified = async () => {
   return true;
 };
 
+const loadAgent = async () => {
+  const agentPath = agentDirect || process.env[agentEnvVar];
+  if (!agentPath) return false;
+  try {
+    const mod = await import(pathToFileURL(path.resolve(agentPath)).href);
+    return mod.default ?? false;
+  } catch (e) {
+    console.error(`Failed to load download agent "${agentPath}": ${e.message}`);
+    return false;
+  }
+};
+const downloadAgent = await loadAgent();
+
 const get = url =>
   new Promise((resolve, reject) => {
     const httpLib = isHttps.test(url) ? https : isHttp.test(url) ? http : null;
@@ -139,7 +155,7 @@ const get = url =>
     }
     let buffer = null;
     httpLib
-      .get(url, {agent: false}, res => {
+      .get(url, {agent: downloadAgent}, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
           get(res.headers.location).then(resolve, reject);
           return;
