@@ -57,6 +57,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
+- 1.6.0 _added N-API support: `--napi` / `--napi-var` / `DOWNLOAD_NAPI` swap the URL slot from `${abi}` to `napi-v${level}`, collapsing the per-Node-major build matrix._
 - 1.5.0 _added optional proxy support via `--agent` / `--agent-var` / `DOWNLOAD_AGENT`; converted to ESM; added an automated test suite; minimum Node bumped to 18._
 - 1.4.0 _added support for uncompresed artifacts and selective compression format._
 - 1.3.5 _propagated the previous timeout fix to the saving utility._
