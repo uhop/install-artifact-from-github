@@ -1,6 +1,6 @@
 # Architecture
 
-`install-artifact-from-github` is a no-dependency micro helper for developers of binary addons for Node. It ships exactly two single-file bin utilities integrated with GitHub Releases: one uploads pre-built binary artifacts from CI, the other downloads them on the user's machine at install time — falling back to a source build on any failure. **Zero runtime dependencies** — devDeps only for formatting, type-checking, and the test runner.
+`install-artifact-from-github` is a no-dependency micro helper for developers of binary addons for Node. It ships exactly two single-file bin utilities integrated with GitHub Releases: one uploads pre-built binary artifacts from CI, the other downloads them on the user's machine at install time &mdash; falling back to a source build on any failure. **Zero runtime dependencies** &mdash; devDeps only for formatting, type-checking, and the test runner.
 
 ## Project layout
 
@@ -27,11 +27,11 @@ There is deliberately no `src/`, no importable API, no build step: the package i
 
 Runs as the consuming addon's `install` script:
 
-1. **Platform detection** — `${platform}-${arch}-${abiSlot}` from `process.platform` / `process.arch` / `process.versions.modules`; musl Linux becomes `linux-musl` (detect-libc algorithm); `--napi N` swaps the ABI slot to `napi-vN`. All three are overridable via `npm_config_platform*` for cross-builds.
-2. **URL construction** — host (default `https://github.com`, overridable for mirrors) + `/${owner}/${repo}/releases/download` (skippable) + `/${version}` (skippable) + `/${prefix}${platform}-${arch}-${abiSlot}${suffix}`. Owner/repo/version come from the consumer's `package.json` (`github` or `repository.url`, `version`), provided by npm via environment variables (npm < 7) or `npm_package_json` (npm >= 7).
-3. **Download chain** — try `.br`, then `.gz`, then uncompressed; each failure is silent and falls through. A non-HTTP host is treated as a local filesystem path. An optional `http.Agent` module (proxy support) is dynamically imported and applied to every request.
-4. **Verification** — run the consumer's `verify-build` script (or `test` as fallback). A binary that downloads but fails verification is discarded.
-5. **Fallback** — anything that fails above ends in `npm run rebuild` (typically `node-gyp rebuild`). The download path is a lossless optimization: its only possible cost is a wasted download attempt.
+1. **Platform detection** &mdash; `${platform}-${arch}-${abiSlot}` from `process.platform` / `process.arch` / `process.versions.modules`; musl Linux becomes `linux-musl` (detect-libc algorithm); `--napi N` swaps the ABI slot to `napi-vN`. All three are overridable via `npm_config_platform*` for cross-builds.
+2. **URL construction** &mdash; host (default `https://github.com`, overridable for mirrors) + `/${owner}/${repo}/releases/download` (skippable) + `/${version}` (skippable) + `/${prefix}${platform}-${arch}-${abiSlot}${suffix}`. Owner/repo/version come from the consumer's `package.json` (`github` or `repository.url`, `version`), provided by npm via environment variables (npm < 7) or `npm_package_json` (npm >= 7).
+3. **Download chain** &mdash; try `.br`, then `.gz`, then uncompressed; each failure is silent and falls through. A non-HTTP host is treated as a local filesystem path. An optional `http.Agent` module (proxy support) is dynamically imported and applied to every request.
+4. **Verification** &mdash; run the consumer's `verify-build` script (or `test` as fallback). A binary that downloads but fails verification is discarded.
+5. **Fallback** &mdash; anything that fails above ends in `npm run rebuild` (typically `node-gyp rebuild`). The download path is a lossless optimization: its only possible cost is a wasted download attempt.
 
 Short-circuits: `DEVELOPMENT_SKIP_GETTING_ASSET` env var or a `.development` file forces the source build.
 
@@ -56,4 +56,4 @@ Runs in GitHub Actions on a tag build:
 
 ## External context: npm 12 and install scripts
 
-npm 12 (July 2026) stops running dependency lifecycle scripts by default. This package's delivery mechanism is the consumer's `install` script, so end users must allowlist the consuming addon (`npm approve-scripts <addon>`) — nothing in this package's code can change that. The consumer-facing story lives in the README and the wiki; keep it current.
+npm 12 (July 2026) stops running dependency lifecycle scripts by default. This package's delivery mechanism is the consumer's `install` script, so end users must allowlist the consuming addon (`npm approve-scripts <addon>`) &mdash; nothing in this package's code can change that. The consumer-facing story lives in the README and the wiki; keep it current.

@@ -4,7 +4,7 @@ Thank you for your interest in contributing!
 
 ## Licensing
 
-This project is distributed under the BSD-3-Clause license. External contributions are accepted only under licenses compatible with it — by submitting a contribution you agree that it can be distributed under the project's license.
+This project is distributed under the BSD-3-Clause license. External contributions are accepted only under licenses compatible with it &mdash; by submitting a contribution you agree that it can be distributed under the project's license.
 
 ## Getting started
 
@@ -28,8 +28,8 @@ See the [wiki](https://github.com/uhop/install-artifact-from-github/wiki) for do
 ## Code style
 
 - ES modules (`import`/`export`), no CommonJS in source.
-- Formatted with Prettier — run `npm run lint:fix` before committing.
-- No dependencies — both utilities are intentionally zero-dependency, single-file bins.
+- Formatted with Prettier &mdash; run `npm run lint:fix` before committing.
+- No dependencies &mdash; both utilities are intentionally zero-dependency, single-file bins.
 - Update wiki documentation alongside code changes.
 
 ## AI agents

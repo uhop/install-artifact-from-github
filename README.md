@@ -53,7 +53,7 @@ Examples of GitHub actions can be found in the documentation.
 
 ## npm 12: install scripts require approval
 
-Starting with npm 12 (July 2026), npm does not run dependency lifecycle scripts by default — and `install-from-cache` runs as your package's `install` script. Users of your addon have to approve it once (`npm approve-scripts <your-package>`), or neither the prebuilt download nor the `node-gyp` fallback will run. Document that step in your install instructions. See [NPM 12 and install scripts](https://github.com/uhop/install-artifact-from-github/wiki/NPM-12-and-install-scripts) for the full story.
+Starting with npm 12 (July 2026), npm does not run dependency lifecycle scripts by default &mdash; and `install-from-cache` runs as your package's `install` script. Users of your addon have to approve it once (`npm approve-scripts <your-package>`), or neither the prebuilt download nor the `node-gyp` fallback will run. Document that step in your install instructions. See [NPM 12 and install scripts](https://github.com/uhop/install-artifact-from-github/wiki/NPM-12-and-install-scripts) for the full story.
 
 ## Documentation
 
@@ -75,4 +75,4 @@ The full release history with dates is in the wiki: [Release notes](https://gith
 
 ## License
 
-BSD-3-Clause — see [LICENSE](./LICENSE).
+BSD-3-Clause &mdash; see [LICENSE](./LICENSE).
