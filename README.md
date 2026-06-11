@@ -5,9 +5,9 @@
 
 This is a no-dependency micro helper for developers of binary addons for Node. It is literally two small one-file utilities integrated with [GitHub releases](https://docs.github.com/en/free-pro-team@latest/github/administering-a-repository/about-releases). The project solves two problems:
 
-- [save-to-github-cache](./Saving) saves a binary artifact to a Github release according to the platform, architecture, and Node ABI.
+- [save-to-github-cache](https://github.com/uhop/install-artifact-from-github/wiki/Save-to-GitHub-cache) saves a binary artifact to a GitHub release according to the platform, architecture, and Node ABI (or N-API level).
   - Designed to be used with [GitHub actions](https://github.com/features/actions).
-- [install-from-cache](./Installing) retrieves a previously saved artifact, tests if it works properly, and rebuilds a project from sources in the case of failure.
+- [install-from-cache](https://github.com/uhop/install-artifact-from-github/wiki/Install-from-cache) retrieves a previously saved artifact, tests if it works properly, and rebuilds a project from sources in the case of failure.
 
 In general, it can save your users from a long recompilation and, in some cases, even save them from installing build tools.
 By using GitHub facilities ([Releases](https://docs.github.com/en/github/administering-a-repository/about-releases)
@@ -41,7 +41,7 @@ In your `package.json` (pseudo-code with comments):
     "install": "install-from-cache --artifact build/Release/ABC.node",
 
     // used by "install" to test the artifact
-    "verify-build": "node scripts/verify-build.js"
+    "verify-build": "node scripts/verify-build.js",
 
     // used by "install" to rebuild from sources
     "rebuild": "node-gyp rebuild"
@@ -50,6 +50,10 @@ In your `package.json` (pseudo-code with comments):
 ```
 
 Examples of GitHub actions can be found in the documentation.
+
+## npm 12: install scripts require approval
+
+Starting with npm 12 (July 2026), npm does not run dependency lifecycle scripts by default — and `install-from-cache` runs as your package's `install` script. Users of your addon have to approve it once (`npm approve-scripts <your-package>`), or neither the prebuilt download nor the `node-gyp` fallback will run. Document that step in your install instructions. See [NPM 12 and install scripts](https://github.com/uhop/install-artifact-from-github/wiki/NPM-12-and-install-scripts) for the full story.
 
 ## Documentation
 
@@ -66,11 +70,9 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 - 1.3.2 _added support for the 204 response and error logging._
 - 1.3.1 _added a way to specify a custom build, thx [Grisha Pushkov](https://github.com/reepush) + a test._
 - 1.3.0 _enhanced support for custom mirrors._
-- 1.2.0 _support for NPM >= 7._
-- 1.1.3 _technical release: updated docs._
-- 1.1.2 _technical release: updated docs._
-- 1.1.1 _numerous bugfixes to please Github REST API._
-- 1.1.0 _moved `save-to-github` here from a separate project, reduced 3rd-party dependencies._
-- 1.0.2 _fixed a `yarn`-specific bug._
-- 1.0.1 _fixed a bug in the environment variable parameter._
-- 1.0.0 _initial release (extracted from [node-re2](https://github.com/uhop/node-re2))._
+
+The full release history with dates is in the wiki: [Release notes](https://github.com/uhop/install-artifact-from-github/wiki/Release-notes).
+
+## License
+
+BSD-3-Clause — see [LICENSE](./LICENSE).

@@ -11,10 +11,16 @@
   "github": "https://github.com/uhop/install-artifact-from-github",
   "repository": {
     "type": "git",
-    "url": "git://github.com/uhop/install-artifact-from-github.git"
+    "url": "git+https://github.com/uhop/install-artifact-from-github.git"
   },
+  "llms": "https://raw.githubusercontent.com/uhop/install-artifact-from-github/master/llms.txt",
+  "llmsFull": "https://raw.githubusercontent.com/uhop/install-artifact-from-github/master/llms-full.txt",
   "files": [
-    "/bin"
+    "/bin",
+    "LICENSE",
+    "README.md",
+    "llms.txt",
+    "llms-full.txt"
   ],
   "bin": {
     "install-from-cache": "bin/install-from-cache.js",
@@ -26,6 +32,10 @@
   ],
   "author": "Eugene Lazutkin <eugene.lazutkin@gmail.com> (https://lazutkin.com/)",
   "license": "BSD-3-Clause",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/uhop"
+  },
   "scripts": {
     "test": "tape6 --flags FO",
     "test:seq": "tape6-seq --flags FO",
