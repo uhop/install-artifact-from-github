@@ -54,6 +54,6 @@
     "prettier": "^3.3.3",
     "tape-six": "^1.7.14",
     "typescript": "^6.0.3",
-    "@types/node": "^25.6.0"
+    "@types/node": "^26.0.1"
   }
 }
