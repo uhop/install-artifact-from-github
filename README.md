@@ -82,7 +82,7 @@ The full documentation is available in the [wiki](https://github.com/uhop/instal
 
 ## Release history
 
-- 1.7.0 _added optional artifact integrity verification: a new `hash-github-cache` bin records each published binary's SHA-256 into the addon's `package.json` (`artifactHashes`), and `install-from-cache` verifies downloads against it before use. Added `--force-build` / `--force-build-var` / `DOWNLOAD_FORCE_BUILD` to skip the download and build from sources._
+- 1.7.0 _added optional artifact integrity verification: a new `hash-github-cache` bin records each published binary's SHA-256. Thx, [ataberk-xyz](https://github.com/ataberk-xyz)._
 - 1.6.0 _added N-API support: `--napi` / `--napi-var` / `DOWNLOAD_NAPI` swap the URL slot from `${abi}` to `napi-v${level}`, collapsing the per-Node-major build matrix._
 - 1.5.0 _added optional proxy support via `--agent` / `--agent-var` / `DOWNLOAD_AGENT`; converted to ESM; added an automated test suite; minimum Node bumped to 18._
 - 1.4.0 _added support for uncompresed artifacts and selective compression format._
