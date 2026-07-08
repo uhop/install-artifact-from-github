@@ -6,8 +6,6 @@ stand; its *mechanism* is now an "alternative considered" — see §11).
 **Date:** 2026-07-07.
 **Origin:** the CWE-494 disclosure (draft advisory GHSA-88q3-gch3-5396). The field survey
 (`artifact-distribution-field-survey.md`) and the design discussion that followed converged here.
-**Publishing the advisory:** `advisory-GHSA-88q3-gch3-5396.md` — ready-to-paste Patches/Workarounds
-text and the accept → set-patched-version → publish procedure.
 
 This note specifies how a downloaded native addon is verified against a **hash bag embedded in
 the consuming package's own `package.json`** — the one channel that is immutable (npm) and that
