@@ -8,6 +8,7 @@ import {promisify} from 'node:util';
 import http from 'node:http';
 import https from 'node:https';
 import {exec, spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 
 /** @type {import('child_process').SpawnSyncOptions} */
 const spawnOptions = {encoding: 'utf8', env: process.env};
@@ -50,10 +51,19 @@ const artifactPath = getParam('artifact'),
   agentDirect = getParam('agent'),
   agentEnvVar = getParam('agent-var') || 'DOWNLOAD_AGENT',
   napiDirect = getParam('napi'),
-  napiEnvVar = getParam('napi-var') || 'DOWNLOAD_NAPI';
+  napiEnvVar = getParam('napi-var') || 'DOWNLOAD_NAPI',
+  forceBuild = isParamPresent('force-build'),
+  forceBuildVar = getParam('force-build-var') || 'DOWNLOAD_FORCE_BUILD';
 
 const napiLevel = napiDirect || process.env[napiEnvVar] || process.env.npm_config_platform_napi || '';
 const abiSlot = napiLevel ? `napi-v${napiLevel}` : platformABI;
+
+// The slot names the artifact for this platform; it keys the integrity hash bag.
+const slot = `${platform}-${platformArch}-${abiSlot}`;
+// Verification applies only to the canonical source: a consumer-supplied mirror is the
+// deployer's own trust root (its bytes may legitimately differ), so we never check it.
+const isDefaultSource = !mirrorHost && !process.env[mirrorEnvVar];
+let artifactHashes = null;
 
 const parseUrl = [
   /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
@@ -77,7 +87,7 @@ const getAssetUrlPrefix = () => {
   const url = process.env.npm_package_github || (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
     result = getRepo(url);
   if (!result) return null;
-  let assetUrl = mirrorHost || process.env[mirrorEnvVar] || 'https://github.com';
+  let assetUrl = mirrorHost || process.env[mirrorEnvVar] || process.env.GITHUB_SERVER_URL || 'https://github.com';
   if (!skipPath && !process.env[skipPathVar]) {
     assetUrl += `/${result[1]}/${result[2]}/releases/download`;
   }
@@ -187,6 +197,18 @@ const write = async (name, data) => {
   await fsp.writeFile(name, data);
 };
 
+// Integrity gate for the canonical source: the decompressed bytes must match the hash the
+// author pinned in the immutable, npm-published package.json. A mismatch OR a downloaded slot
+// the bag doesn't cover both fail closed (rebuild). No bag / a mirror source skips the check.
+const verifyArtifact = data => {
+  if (!isDefaultSource || !artifactHashes) return true;
+  const expected = artifactHashes[slot],
+    actual = 'sha256:' + createHash('sha256').update(data).digest('hex');
+  if (expected && expected === actual) return true;
+  console.log(`Integrity check failed for ${slot}: building from sources ...`);
+  return false;
+};
+
 const main = async () => {
   checks: {
     if (process.env.npm_package_json && /\bpackage\.json$/i.test(process.env.npm_package_json)) {
@@ -201,6 +223,7 @@ const main = async () => {
         process.env.npm_package_version = pkg.version || '';
         process.env.npm_package_scripts_verify_build = (pkg.scripts && pkg.scripts['verify-build']) || '';
         process.env.npm_package_scripts_test = (pkg.scripts && pkg.scripts.test) || '';
+        artifactHashes = pkg.artifactHashes && typeof pkg.artifactHashes === 'object' ? pkg.artifactHashes : null;
       } catch (error) {
         console.log('Could not retrieve and parse package.json.');
         break checks;
@@ -208,6 +231,10 @@ const main = async () => {
     }
     if (!artifactPath) {
       console.log('No artifact path was specified with --artifact.');
+      break checks;
+    }
+    if (forceBuild || process.env[forceBuildVar]) {
+      console.log('Forced build from sources was requested.');
       break checks;
     }
     if (await isDev()) {
@@ -219,39 +246,54 @@ const main = async () => {
       console.log('No github repository was identified.');
       break checks;
     }
-    let copied = false;
+    let copied = false,
+      rejected = false;
+    // a failed integrity check rejects the artifact outright: the other formats decode to the
+    // same bytes, so there is no point trying them -- fall through to a source build instead.
     // let's try brotli
-    if (zlib.brotliDecompress) {
+    if (!rejected && zlib.brotliDecompress) {
       try {
         console.log(`Trying ${prefix}.br ...`);
-        const artifact = await get(prefix + '.br');
-        console.log(`Writing to ${artifactPath} ...`);
-        await write(artifactPath, await promisify(zlib.brotliDecompress)(artifact));
-        copied = true;
+        const artifact = await promisify(zlib.brotliDecompress)(await get(prefix + '.br'));
+        if (verifyArtifact(artifact)) {
+          console.log(`Writing to ${artifactPath} ...`);
+          await write(artifactPath, artifact);
+          copied = true;
+        } else {
+          rejected = true;
+        }
       } catch (e) {
         // squelch
       }
     }
     // let's try gzip
-    if (!copied && zlib.gunzip) {
+    if (!copied && !rejected && zlib.gunzip) {
       try {
         console.log(`Trying ${prefix}.gz ...`);
-        const artifact = await get(prefix + '.gz');
-        console.log(`Writing to ${artifactPath} ...`);
-        await write(artifactPath, await promisify(zlib.gunzip)(artifact));
-        copied = true;
+        const artifact = await promisify(zlib.gunzip)(await get(prefix + '.gz'));
+        if (verifyArtifact(artifact)) {
+          console.log(`Writing to ${artifactPath} ...`);
+          await write(artifactPath, artifact);
+          copied = true;
+        } else {
+          rejected = true;
+        }
       } catch (e) {
         // squelch
       }
     }
     // let's try uncompressed
-    if (!copied) {
+    if (!copied && !rejected) {
       try {
         console.log(`Trying ${prefix} ...`);
         const artifact = await get(prefix);
-        console.log(`Writing to ${artifactPath} ...`);
-        await write(artifactPath, artifact);
-        copied = true;
+        if (verifyArtifact(artifact)) {
+          console.log(`Writing to ${artifactPath} ...`);
+          await write(artifactPath, artifact);
+          copied = true;
+        } else {
+          rejected = true;
+        }
       } catch (e) {
         // squelch
       }

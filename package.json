@@ -24,7 +24,8 @@
   ],
   "bin": {
     "install-from-cache": "bin/install-from-cache.js",
-    "save-to-github-cache": "bin/save-to-github-cache.js"
+    "save-to-github-cache": "bin/save-to-github-cache.js",
+    "hash-github-cache": "bin/hash-github-cache.js"
   },
   "keywords": [
     "helper",
