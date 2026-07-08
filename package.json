@@ -13,8 +13,6 @@
     "type": "git",
     "url": "git+https://github.com/uhop/install-artifact-from-github.git"
   },
-  "llms": "https://raw.githubusercontent.com/uhop/install-artifact-from-github/master/llms.txt",
-  "llmsFull": "https://raw.githubusercontent.com/uhop/install-artifact-from-github/master/llms-full.txt",
   "files": [
     "/bin",
     "LICENSE",
