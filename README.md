@@ -78,7 +78,7 @@ Starting with npm 12 (July 2026), npm does not run dependency lifecycle scripts 
 
 ## Documentation
 
-The full documentation is available in the [wiki](https://github.com/uhop/install-artifact-from-github/wiki).
+The full documentation is in the **[wiki](https://github.com/uhop/install-artifact-from-github/wiki)** &mdash; browse the [index](https://github.com/uhop/install-artifact-from-github/wiki/Home), or [search it](https://uhop.github.io/wiki-search/app/?wiki=uhop/install-artifact-from-github) by name.
 
 ## Release history
 

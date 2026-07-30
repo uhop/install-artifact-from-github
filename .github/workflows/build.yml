@@ -13,7 +13,7 @@ on:
       - 'v*-test'
 
 permissions:
-  contents: write   # gh release create + asset upload
+  contents: write # gh release create + asset upload
 
 jobs:
   release-dogfood:

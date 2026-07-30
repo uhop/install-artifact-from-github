@@ -1,5 +1,2 @@
-node_modules/
-package-lock.json
-wiki/
-.github/
-dev-docs/
+# design docs with hand-aligned fenced samples — prettier reflows them (fleet slice 19, measured 2026-07-30)
+/dev-docs

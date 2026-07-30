@@ -50,9 +50,9 @@
     ]
   },
   "devDependencies": {
-    "prettier": "^3.9.4",
-    "tape-six": "^1.14.0",
+    "prettier": "^3.9.6",
+    "tape-six": "^1.16.2",
     "typescript": "^7.0.2",
-    "@types/node": "^26.1.0"
+    "@types/node": "^26.1.2"
   }
 }
