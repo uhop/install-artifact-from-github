@@ -28,17 +28,16 @@ const getOptionalParam = name => {
 const prefix = getParam('prefix'),
   suffix = getParam('suffix');
 
-const parseUrl = [
-  /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
-  /^github:([^\/]+)\/([^#]+)(?:#|$)/i,
-  /^([^:\/]+)\/([^#]+)(?:#|$)/i
-];
+const parseFullUrl = /^(?:https?|git|git\+ssh|git\+https?):\/\/(?:[^@\/]*@)?([^\/]+)\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i;
+const parseShorthand = [/^github:([^\/]+)\/([^#]+)(?:#|$)/i, /^([^:\/]+)\/([^#]+)(?:#|$)/i];
 
 const getRepo = url => {
   if (!url) return null;
-  for (const re of parseUrl) {
+  const full = parseFullUrl.exec(url);
+  if (full) return {owner: full[2], name: full[3]};
+  for (const re of parseShorthand) {
     const result = re.exec(url);
-    if (result) return result;
+    if (result) return {owner: result[1], name: result[2]};
   }
   return null;
 };
@@ -157,8 +156,8 @@ const main = async () => {
   } else {
     const tag = getOptionalParam('from-release') || pkg.version;
     const repo = getRepo(pkg.github || (pkg.repository && pkg.repository.type === 'git' && pkg.repository.url));
-    let owner = repo && repo[1],
-      name = repo && repo[2];
+    let owner = repo && repo.owner,
+      name = repo && repo.name;
     if ((!owner || !name) && process.env.GITHUB_REPOSITORY) [owner, name] = process.env.GITHUB_REPOSITORY.split('/');
     if (!owner || !name) {
       console.error('Could not determine the GitHub repository (package.json "github" / "repository", or GITHUB_REPOSITORY).');

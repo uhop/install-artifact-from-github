@@ -58,52 +58,45 @@ const artifactPath = getParam('artifact'),
 const napiLevel = napiDirect || process.env[napiEnvVar] || process.env.npm_config_platform_napi || '';
 const abiSlot = napiLevel ? `napi-v${napiLevel}` : platformABI;
 
-// The slot names the artifact for this platform; it keys the integrity hash bag.
 const slot = `${platform}-${platformArch}-${abiSlot}`;
-// GITHUB_SERVER_URL is deliberately not consulted: in Actions it names the instance running the
-// workflow, never the host of a dependency's artifacts. See issue #27.
-const canonicalHost = (process.env.DEVELOPMENT_CANONICAL_HOST || 'https://github.com').replace(/\/+$/, '');
-const host = (mirrorHost || process.env[mirrorEnvVar] || canonicalHost).replace(/\/+$/, '');
-// The hashes attest to the bytes the author published at the addon's own release location, so
-// verification keys off the resolved URL landing there -- not off whether an override was
-// supplied. Anywhere else is a deployer-chosen mirror whose bytes may legitimately differ, and
-// is never checked; an override aimed back at that location is the original and is. Set in
-// getAssetUrlPrefix, which is where the URL and the owner/repo it needs both exist.
+// Set in getAssetUrlPrefix: the hashes attest to the bytes at the addon's own release location,
+// so the gate is where the URL resolved to, not whether an override was supplied.
 let isDefaultSource = false;
 let artifactHashes = null;
 
-const parseUrl = [
-  /^(?:https?|git|git\+ssh|git\+https?):\/\/github.com\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i,
-  /^github:([^\/]+)\/([^#]+)(?:#|$)/i,
-  /^([^:\/]+)\/([^#]+)(?:#|$)/i
-];
+const parseFullUrl = /^(?:https?|git|git\+ssh|git\+https?):\/\/(?:[^@\/]*@)?([^\/]+)\/([^\/]+)\/([^\/\.]+)(?:\/|\.git\b|$)/i;
+const parseShorthand = [/^github:([^\/]+)\/([^#]+)(?:#|$)/i, /^([^:\/]+)\/([^#]+)(?:#|$)/i];
 
 const isHttp = /^http:\/\//i,
   isHttps = /^https:\/\//i;
 
+// git/ssh forms name no web scheme, so everything but an explicit http:// resolves to https.
 const getRepo = url => {
   if (!url) return null;
-  for (const re of parseUrl) {
+  const full = parseFullUrl.exec(url);
+  if (full) return {host: (isHttp.test(url) ? 'http://' : 'https://') + full[1], owner: full[2], name: full[3]};
+  for (const re of parseShorthand) {
     const result = re.exec(url);
-    if (result) return result;
+    if (result) return {host: '', owner: result[1], name: result[2]};
   }
   return null;
 };
 
 const getAssetUrlPrefix = () => {
   const url = process.env.npm_package_github || (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
-    result = getRepo(url);
-  if (!result) return null;
-  let assetUrl = host;
+    repo = getRepo(url);
+  if (!repo) return null;
+  const canonicalHost = repo.host || 'https://github.com';
+  let assetUrl = (mirrorHost || process.env[mirrorEnvVar] || canonicalHost).replace(/\/+$/, '');
   if (!skipPath && !process.env[skipPathVar]) {
-    assetUrl += `/${result[1]}/${result[2]}/releases/download`;
+    assetUrl += `/${repo.owner}/${repo.name}/releases/download`;
   }
   if (!skipVer && !process.env[skipVerVar]) {
     assetUrl += '/' + process.env.npm_package_version;
   }
   assetUrl += `/${prefix}${platform}-${platformArch}-${abiSlot}${suffix}`;
-  const canonicalPrefix = `${canonicalHost}/${result[1]}/${result[2]}/releases/download/`;
-  isDefaultSource = assetUrl.toLowerCase().startsWith(canonicalPrefix.toLowerCase());
+  const canonical = `${canonicalHost}/${repo.owner}/${repo.name}/releases/download/`;
+  isDefaultSource = assetUrl.toLowerCase().startsWith(canonical.toLowerCase());
   return assetUrl;
 };
 
@@ -206,9 +199,8 @@ const write = async (name, data) => {
   await fsp.writeFile(name, data);
 };
 
-// Integrity gate for the canonical source: the decompressed bytes must match the hash the
-// author pinned in the immutable, npm-published package.json. A mismatch OR a downloaded slot
-// the bag doesn't cover both fail closed (rebuild). No bag / a mirror source skips the check.
+// A slot the bag doesn't cover fails closed, exactly like a mismatch: a complete bag means
+// anything unlisted should not exist.
 const verifyArtifact = data => {
   if (!isDefaultSource || !artifactHashes) return true;
   const expected = artifactHashes[slot],
@@ -223,9 +215,7 @@ const main = async () => {
     if (process.env.npm_package_json && /\bpackage\.json$/i.test(process.env.npm_package_json)) {
       // for NPM >= 7
       try {
-        // read the package info
         const pkg = JSON.parse(await fsp.readFile(process.env.npm_package_json, 'utf8'));
-        // populate necessary environment variables locally
         process.env.npm_package_github = pkg.github || '';
         process.env.npm_package_repository_type = (pkg.repository && pkg.repository.type) || '';
         process.env.npm_package_repository_url = (pkg.repository && pkg.repository.url) || '';
@@ -257,9 +247,7 @@ const main = async () => {
     }
     let copied = false,
       rejected = false;
-    // a failed integrity check rejects the artifact outright: the other formats decode to the
-    // same bytes, so there is no point trying them -- fall through to a source build instead.
-    // let's try brotli
+    // A rejected artifact ends the attempt: the other formats decode to the same bytes.
     if (!rejected && zlib.brotliDecompress) {
       try {
         console.log(`Trying ${prefix}.br ...`);
@@ -275,7 +263,6 @@ const main = async () => {
         // squelch
       }
     }
-    // let's try gzip
     if (!copied && !rejected && zlib.gunzip) {
       try {
         console.log(`Trying ${prefix}.gz ...`);
@@ -291,7 +278,6 @@ const main = async () => {
         // squelch
       }
     }
-    // let's try uncompressed
     if (!copied && !rejected) {
       try {
         console.log(`Trying ${prefix} ...`);
@@ -307,7 +293,6 @@ const main = async () => {
         // squelch
       }
     }
-    // verify the install
     if (copied && (await isVerified())) return console.log('Done.');
   }
   console.log('Building locally ...');
