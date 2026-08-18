@@ -60,9 +60,16 @@ const abiSlot = napiLevel ? `napi-v${napiLevel}` : platformABI;
 
 // The slot names the artifact for this platform; it keys the integrity hash bag.
 const slot = `${platform}-${platformArch}-${abiSlot}`;
-// Verification applies only to the canonical source: a consumer-supplied mirror is the
-// deployer's own trust root (its bytes may legitimately differ), so we never check it.
-const isDefaultSource = !mirrorHost && !process.env[mirrorEnvVar];
+// GITHUB_SERVER_URL is deliberately not consulted: in Actions it names the instance running the
+// workflow, never the host of a dependency's artifacts. See issue #27.
+const canonicalHost = (process.env.DEVELOPMENT_CANONICAL_HOST || 'https://github.com').replace(/\/+$/, '');
+const host = (mirrorHost || process.env[mirrorEnvVar] || canonicalHost).replace(/\/+$/, '');
+// The hashes attest to the bytes the author published at the addon's own release location, so
+// verification keys off the resolved URL landing there -- not off whether an override was
+// supplied. Anywhere else is a deployer-chosen mirror whose bytes may legitimately differ, and
+// is never checked; an override aimed back at that location is the original and is. Set in
+// getAssetUrlPrefix, which is where the URL and the owner/repo it needs both exist.
+let isDefaultSource = false;
 let artifactHashes = null;
 
 const parseUrl = [
@@ -87,7 +94,7 @@ const getAssetUrlPrefix = () => {
   const url = process.env.npm_package_github || (process.env.npm_package_repository_type === 'git' && process.env.npm_package_repository_url),
     result = getRepo(url);
   if (!result) return null;
-  let assetUrl = mirrorHost || process.env[mirrorEnvVar] || process.env.GITHUB_SERVER_URL || 'https://github.com';
+  let assetUrl = host;
   if (!skipPath && !process.env[skipPathVar]) {
     assetUrl += `/${result[1]}/${result[2]}/releases/download`;
   }
@@ -95,6 +102,8 @@ const getAssetUrlPrefix = () => {
     assetUrl += '/' + process.env.npm_package_version;
   }
   assetUrl += `/${prefix}${platform}-${platformArch}-${abiSlot}${suffix}`;
+  const canonicalPrefix = `${canonicalHost}/${result[1]}/${result[2]}/releases/download/`;
+  isDefaultSource = assetUrl.toLowerCase().startsWith(canonicalPrefix.toLowerCase());
   return assetUrl;
 };
 

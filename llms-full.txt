@@ -70,7 +70,7 @@ The `--flag` form always wins over `--flag-var`; the `--flag-var`-named env var 
 - `DEVELOPMENT_SHOW_VERIFICATION_RESULTS` — non-empty shows `verify-build` output.
 - `DOWNLOAD_HOST`, `DOWNLOAD_SKIP_PATH`, `DOWNLOAD_SKIP_VER`, `DOWNLOAD_AGENT`, `DOWNLOAD_NAPI` — defaults for the corresponding flags above.
 - *(since 1.7.0)* `DOWNLOAD_FORCE_BUILD` — non-empty forces the source build (default name for `--force-build-var`).
-- *(since 1.7.0)* `GITHUB_SERVER_URL` — the canonical GitHub host for the default (verified) source; defaults to `https://github.com`. Set by GitHub Actions automatically; also lets GitHub Enterprise point the verified download at its own instance. Distinct from `DOWNLOAD_HOST`: a `GITHUB_SERVER_URL` source is still integrity-checked, a `DOWNLOAD_HOST` mirror is not.
+- `DEVELOPMENT_CANONICAL_HOST` — relocates the host half of the canonical (integrity-checked) release location away from `https://github.com`. Test-harness knob: it exists so the suite can put the canonical source on a local mock server, and consumers have no reason to set it. `GITHUB_SERVER_URL` is deliberately **not** consulted — GitHub Actions sets it to the instance running the workflow, not to the host of a dependency's artifacts (issue #27).
 
 ### Recognized npm parameters (cross-platform builds)
 
@@ -108,7 +108,7 @@ Behavior at install time:
 - **A `--host` / `DOWNLOAD_HOST` mirror** → never checked. A curated mirror legitimately serves the deployer's own build, whose bytes need not match the upstream bag; the mirror is the deployer's trust root.
 - **No `artifactHashes` in `package.json`** → nothing to check; installs exactly as before (non-breaking).
 
-The check compares the **decompressed** bytes (what actually runs), not the compressed wire bytes, so a mirror recompressing the same binary does not spuriously fail. "Canonical source" means the default host — `GITHUB_SERVER_URL` or `https://github.com` — with no `--host`/`--host-var`/`DOWNLOAD_HOST` override.
+The check compares the **decompressed** bytes (what actually runs), not the compressed wire bytes, so a mirror recompressing the same binary does not spuriously fail. "Canonical source" means the resolved download URL falls under `https://github.com/${owner}/${repo}/releases/download/` — the addon's own release location, built from the `owner`/`repo` parsed out of its `package.json`. That is what the default configuration yields, and it is equally what a `--host`/`--host-var`/`DOWNLOAD_HOST` override resolving back onto that prefix yields: such a mirror keeps its integrity check, because the test is where the bytes come from, not whether an override was supplied. A mirror on another host — or on `github.com` under a different path — is not the location the hashes attest to, and is not checked.
 
 ## save-to-github-cache
 
@@ -154,7 +154,7 @@ A plain `npm publish` then hashes the release, stamps `artifactHashes` into `pac
 ${host}/${owner}/${repo}/releases/download/${version}/${prefix}${platform}-${arch}-${abiSlot}${suffix}${compression}
 ```
 
-- `host` — `https://github.com` by default (or `GITHUB_SERVER_URL`, since 1.7.0); mirror or local path via `--host` / `DOWNLOAD_HOST`.
+- `host` — `https://github.com` by default; mirror or local path via `--host` / `DOWNLOAD_HOST`. Trailing slashes are trimmed.
 - `owner` / `repo` — parsed from the consumer's `package.json` `github` field or `repository.url`.
 - `version` — the consumer's `package.json` version (equals the release tag).
 - `platform` — `process.platform`, with musl Linux reported as `linux-musl`.
@@ -185,7 +185,7 @@ What addon authors should do: document the approval step in the addon's install 
 ## Security model
 
 - Artifacts are downloaded over HTTPS from GitHub Releases — public, writable only by the addon's maintainers. No separate binary CDN.
-- *(since 1.7.0)* **Integrity verification.** When the addon pins an `artifactHashes` bag, a downloaded binary from the canonical GitHub source must match the pinned SHA-256 before it is written; a mismatch rebuilds from source. The bag lives in the addon's immutable, npm-published `package.json` — the one channel an attacker who can swap a mutable release asset cannot also rewrite — so it defends against a post-publish asset swap without any signing key, extra network call, or dependency. Opt-in per addon and source-scoped (mirrors excluded). See "Artifact integrity verification" above.
+- *(since 1.7.0)* **Integrity verification.** When the addon pins an `artifactHashes` bag, a downloaded binary from the canonical GitHub source must match the pinned SHA-256 before it is written; a mismatch rebuilds from source. The bag lives in the addon's immutable, npm-published `package.json` — the one channel an attacker who can swap a mutable release asset cannot also rewrite — so it defends against a post-publish asset swap without any signing key, extra network call, or dependency. Opt-in per addon and source-scoped (mirrors resolving away from the addon’s own release location excluded). See "Artifact integrity verification" above.
 - The downloader never executes downloaded content; it writes a file, and the consumer's own `verify-build` / `require()` path decides whether it works.
 - A failed verification (integrity or `verify-build`) discards the download and rebuilds from source. `--force-build` / `DOWNLOAD_FORCE_BUILD` skips the download entirely, collapsing trust to npm plus the local toolchain.
 - Corporate environments can mirror artifacts (`DOWNLOAD_HOST` + skip flags) or route through a proxy (`DOWNLOAD_AGENT`) without weakening any of the above; a mirror serves the deployer's own trust root and is intentionally not integrity-checked against the upstream bag.

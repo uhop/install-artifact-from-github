@@ -32,14 +32,14 @@ const makeBagSandbox = async artifactHashes => {
 };
 
 // npm_config_platform* pins the slot and short-circuits the post-write build check.
-// GITHUB_SERVER_URL points the *canonical* (verified) source at the mock, without tripping the
-// mirror bypass the way DOWNLOAD_HOST would.
+// DEVELOPMENT_CANONICAL_HOST moves the canonical (verified) host to the mock, so the download is
+// the canonical source rather than a mirror -- DOWNLOAD_HOST alone would bypass verification.
 const verifyEnv = (sandbox, serverUrl, extra = {}) => ({
   npm_config_platform: PLATFORM,
   npm_config_platform_arch: ARCH,
   npm_config_platform_abi: ABI,
   npm_package_json: sandbox.pkgJson,
-  GITHUB_SERVER_URL: serverUrl,
+  DEVELOPMENT_CANONICAL_HOST: serverUrl,
   ...extra
 });
 
@@ -136,6 +136,60 @@ test('verify: a consumer mirror bypasses verification (its bytes are the deploye
     t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout})`);
     t.notOk(r.stdout.includes('Integrity check failed'), 'no integrity check on a mirror');
     t.deepEqual(await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin')), payload, 'mirror artifact written despite the wrong bag');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('verify: a mirror resolving to the release location keeps its integrity check', async t => {
+  const server = await startMockServer();
+  const payload = Buffer.from('mirror-pointing-home');
+  // Bag deliberately wrong for the slot: the override rebuilds the addon's own release URL, so
+  // the check must still run and reject -- the bypass keys off the URL, not off being set.
+  const sandbox = await makeBagSandbox({[SLOT]: sha(Buffer.from('would-mismatch'))});
+  try {
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+    const r = await runInstall(sandbox, verifyEnv(sandbox, server.url, {DOWNLOAD_HOST: server.url + '/'}));
+    t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout})`);
+    t.ok(r.stdout.includes(`Integrity check failed for ${SLOT}`), 'the redirected-home mirror is still checked');
+    t.notOk(await artifactExists(sandbox), 'nothing written for the mismatching artifact');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('verify: the same host under a different path is a mirror, not the release location', async t => {
+  const server = await startMockServer();
+  const payload = Buffer.from('same-host-other-path');
+  // Bag deliberately wrong: the bytes do not come from where the author published them, so the
+  // hashes do not attest to them and must not be enforced.
+  const sandbox = await makeBagSandbox({[SLOT]: sha(Buffer.from('would-mismatch'))});
+  try {
+    server.setAsset('/elsewhere' + ASSET_PATH + '.br', await brotli(payload));
+    const r = await runInstall(sandbox, verifyEnv(sandbox, server.url, {DOWNLOAD_HOST: server.url + '/elsewhere'}));
+    t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout})`);
+    t.notOk(r.stdout.includes('Integrity check failed'), 'no integrity check off the release path');
+    t.deepEqual(await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin')), payload, 'mirror artifact written despite the wrong bag');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('verify: GITHUB_SERVER_URL does not redirect the download (issue #27)', async t => {
+  const server = await startMockServer();
+  const payload = Buffer.from('public-artifact-under-enterprise-actions');
+  const sandbox = await makeBagSandbox({[SLOT]: sha(payload)});
+  try {
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+    // What GitHub Actions sets on a GHE Cloud runner; it names the instance running the workflow,
+    // not the host of this dependency's artifacts, so it must not touch the download host.
+    const r = await runInstall(sandbox, verifyEnv(sandbox, server.url, {GITHUB_SERVER_URL: 'https://contoso.ghe.com'}));
+    t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout})`);
+    t.notOk(r.stdout.includes('contoso.ghe.com'), 'the enterprise host is never contacted');
+    t.deepEqual(await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin')), payload, 'the canonical artifact is written and verified');
   } finally {
     await server.close();
     await sandbox.cleanup();
