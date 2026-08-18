@@ -11,6 +11,7 @@ import http from 'node:http';
 // else returns 404. Posted uploads land in `recorded` for assertions.
 
 export const startMockServer = async (opts = {}) => {
+  const apiPrefix = opts.apiPrefix || ''; // e.g. '/api/v3' to impersonate GitHub Enterprise
   const assets = new Map(); // path -> {body: Buffer, contentType?: string}
   const recorded = []; // {name, label, body, headers}
 
@@ -27,7 +28,8 @@ export const startMockServer = async (opts = {}) => {
     const pathname = url.pathname;
 
     // GET /repos/:owner/:repo/releases/tags/:tag
-    let m = req.method === 'GET' && pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/releases\/tags\/(.+)$/);
+    let m =
+      req.method === 'GET' && pathname.startsWith(apiPrefix) && pathname.slice(apiPrefix.length).match(/^\/repos\/([^/]+)\/([^/]+)\/releases\/tags\/(.+)$/);
     if (m) {
       const [, owner, repo, tag] = m;
       releaseHandler(req, res, {owner, repo, tag});

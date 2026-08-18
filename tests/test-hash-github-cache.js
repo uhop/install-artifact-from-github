@@ -125,6 +125,34 @@ test('hash-github-cache: --from-release fetches assets and stamps the bag', asyn
   }
 });
 
+test('hash-github-cache: an enterprise GITHUB_API_URL keeps its /api/v3 path', async t => {
+  const assets = [{name: 'linux-x64-108', body: PAYLOAD_A}];
+  const server = await startMockServer({
+    apiPrefix: '/api/v3',
+    releaseHandler: (req, res) => {
+      const base = `http://${req.headers.host}`;
+      res.writeHead(200, {'content-type': 'application/json'});
+      res.end(JSON.stringify({tag_name: VERSION, assets: assets.map(a => ({name: a.name, browser_download_url: `${base}/dl/${a.name}`}))}));
+    }
+  });
+  const sandbox = await makeGenSandbox();
+  try {
+    for (const a of assets) server.setAsset(`/dl/${a.name}`, a.body);
+
+    const r = await runBin('hash-github-cache.js', {
+      args: ['--write', '--from-release', '--package', sandbox.pkgJson],
+      env: {GITHUB_API_URL: server.url + '/api/v3'}
+    });
+    t.equal(r.code, 0, `exited 0 (stderr=${r.stderr})`);
+
+    const pkg = await readPkg(sandbox.pkgJson);
+    t.deepEqual(pkg.artifactHashes, {'linux-x64-108': sha(PAYLOAD_A)}, 'the API path survived, so the release was found');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
 test('hash-github-cache: requires exactly one of --write / --check', async t => {
   const sandbox = await makeGenSandbox();
   try {

@@ -109,8 +109,10 @@ const main = async () => {
 
   console.log('Preparing artifact', fileName, '...');
 
-  const apiBase = process.env.GITHUB_API_URL || 'https://api.github.com';
-  const releaseUrl = new URL(`/repos/${encodeURIComponent(OWNER)}/${encodeURIComponent(REPO)}/releases/tags/${encodeURIComponent(TAG)}`, apiBase);
+  // GITHUB_API_URL carries a path on GitHub Enterprise (`https://host/api/v3`), which
+  // `new URL(path, base)` would drop.
+  const apiBase = (process.env.GITHUB_API_URL || 'https://api.github.com').replace(/\/+$/, '');
+  const releaseUrl = new URL(`${apiBase}/repos/${encodeURIComponent(OWNER)}/${encodeURIComponent(REPO)}/releases/tags/${encodeURIComponent(TAG)}`);
   const [data, uploadUrl] = await Promise.all([
     fsp.readFile(path.normalize(artifactPath)),
     get(releaseUrl, {

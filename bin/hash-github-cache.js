@@ -34,10 +34,10 @@ const parseShorthand = [/^github:([^\/]+)\/([^#]+)(?:#|$)/i, /^([^:\/]+)\/([^#]+
 const getRepo = url => {
   if (!url) return null;
   const full = parseFullUrl.exec(url);
-  if (full) return {owner: full[2], name: full[3]};
+  if (full) return {host: (/^http:\/\//i.test(url) ? 'http://' : 'https://') + full[1], owner: full[2], name: full[3]};
   for (const re of parseShorthand) {
     const result = re.exec(url);
-    if (result) return {owner: result[1], name: result[2]};
+    if (result) return {host: '', owner: result[1], name: result[2]};
   }
   return null;
 };
@@ -109,9 +109,18 @@ const collectFromDir = async dir => {
   return bag;
 };
 
-const collectFromRelease = async (owner, repo, tag) => {
-  const apiBase = process.env.GITHUB_API_URL || 'https://api.github.com';
-  const releaseUrl = new URL(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases/tags/${encodeURIComponent(tag)}`, apiBase);
+// github.com serves its API from a dedicated host with no path; an enterprise instance serves it
+// from the instance itself under /api/v3. Joining as a string, not `new URL(path, base)`, which
+// would drop that path.
+const getApiBase = repoHost => {
+  const configured = process.env.GITHUB_API_URL;
+  if (configured) return configured.replace(/\/+$/, '');
+  if (repoHost && repoHost !== 'https://github.com') return repoHost + '/api/v3';
+  return 'https://api.github.com';
+};
+
+const collectFromRelease = async (owner, repo, tag, apiBase) => {
+  const releaseUrl = new URL(`${apiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases/tags/${encodeURIComponent(tag)}`);
   const token = process.env.GITHUB_TOKEN || process.env.PERSONAL_TOKEN;
   const headers = {Accept: 'application/vnd.github.v3+json'};
   if (token) headers.Authorization = 'Bearer ' + token;
@@ -163,7 +172,7 @@ const main = async () => {
       console.error('Could not determine the GitHub repository (package.json "github" / "repository", or GITHUB_REPOSITORY).');
       process.exit(2);
     }
-    bag = await collectFromRelease(owner, name, tag);
+    bag = await collectFromRelease(owner, name, tag, getApiBase(repo && repo.host));
   }
 
   bag = sortByKey(bag);

@@ -131,7 +131,7 @@ For each artifact it recovers the slot from the file name (`${prefix}${slot}${su
 
 - `--write` — compute the bag and write/refresh `artifactHashes` in `package.json`.
 - `--check` — compute the bag and compare it to `package.json`; exit non-zero with a per-slot diff (`missing:` / `mismatch:` / `stale:`) if it differs. Exactly one of `--write` / `--check` is required.
-- `--from-release [tag]` — hash the assets attached to the GitHub release (default tag: the `package.json` `version`). This is the default source; the repo is read from `package.json` `github` / `repository.url` or `GITHUB_REPOSITORY`. Honors `GITHUB_API_URL`, and `GITHUB_TOKEN` / `PERSONAL_TOKEN` for private repos (auth is dropped on the redirect to the asset CDN).
+- `--from-release [tag]` — hash the assets attached to the GitHub release (default tag: the `package.json` `version`). This is the default source; the repo is read from `package.json` `github` / `repository.url` or `GITHUB_REPOSITORY`. Honors `GITHUB_API_URL` including any path it carries (GitHub Enterprise's `https://host/api/v3`); unset, it defaults to `https://api.github.com` for a `github.com` repo and `<host>/api/v3` otherwise. Also honors `GITHUB_TOKEN` / `PERSONAL_TOKEN` for private repos (auth is dropped on the redirect to the asset CDN).
 - `--from dir` — hash slot-named artifacts in a local directory instead of the release.
 - `--prefix prefix` / `--suffix suffix` — artifact name decoration; must match the install / save sides.
 - `--package path` — the `package.json` to read/stamp. Default: `./package.json`.

@@ -29,6 +29,22 @@ const saveEnv = host => ({
   GITHUB_TOKEN: 'fake-token-do-not-use'
 });
 
+test('save-to-github-cache: an enterprise GITHUB_API_URL keeps its /api/v3 path', async t => {
+  const server = await startMockServer({apiPrefix: '/api/v3'});
+  const fixture = await writeArtifact(Buffer.from('enterprise-artifact'));
+  try {
+    const r = await runBin('save-to-github-cache.js', {
+      args: ['--artifact', fixture.file, '--prefix', PREFIX, '--suffix', SUFFIX, '--format', 'none'],
+      env: saveEnv(server.url + '/api/v3')
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    t.equal(server.recorded.length, 1, 'the API path survived, so the release was found and the asset uploaded');
+  } finally {
+    await server.close();
+    await fixture.cleanup();
+  }
+});
+
 test('save-to-github-cache: uploads brotli + gzip + uncompressed for --format br,gz,none', async t => {
   const server = await startMockServer();
   const payload = Buffer.from('hello-save-bin');
