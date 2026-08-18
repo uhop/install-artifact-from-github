@@ -1,6 +1,6 @@
 {
   "name": "install-artifact-from-github",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "type": "module",
   "engines": {
     "node": ">=18"
@@ -51,8 +51,8 @@
   },
   "devDependencies": {
     "prettier": "^3.9.6",
-    "tape-six": "^1.16.2",
+    "tape-six": "^1.16.4",
     "typescript": "^7.0.2",
-    "@types/node": "^26.1.2"
+    "@types/node": "^26.2.0"
   }
 }

@@ -66,7 +66,7 @@ You pin a hash bag in your addon's `package.json` and let `hash-github-cache` ma
 }
 ```
 
-On `npm publish`, `hash-github-cache` hashes the release's assets and stamps an `artifactHashes` map (`{"linux-x64-137": "sha256:...", ...}`) into the packed `package.json`. Because that map ships in your **immutable npm tarball**, someone who swaps a GitHub release asset after publish cannot also rewrite the expected hash &mdash; so `install-from-cache` rejects the swapped binary and rebuilds from source instead. Verification runs only for downloads from GitHub itself; a custom mirror (`--host` / `DOWNLOAD_HOST`) serves the deployer's own build and is intentionally not checked.
+On `npm publish`, `hash-github-cache` hashes the release's assets and stamps an `artifactHashes` map (`{"linux-x64-137": "sha256:...", ...}`) into the packed `package.json`. Because that map ships in your **immutable npm tarball**, someone who swaps a GitHub release asset after publish cannot also rewrite the expected hash &mdash; so `install-from-cache` rejects the swapped binary and rebuilds from source instead. Verification runs only for downloads from your addon's own release location; a custom mirror (`--host` / `DOWNLOAD_HOST`) pointing elsewhere serves the deployer's own build and is intentionally not checked, while one pointing back at that location keeps its check.
 
 To skip the prebuilt download entirely and always build from source (trusting only npm plus your own toolchain), set `--force-build` (or the `DOWNLOAD_FORCE_BUILD` environment variable).
 
@@ -82,6 +82,7 @@ The full documentation is in the **[wiki](https://github.com/uhop/install-artifa
 
 ## Release history
 
+- 1.8.0 _fixed the download host under GitHub Enterprise Actions: `GITHUB_SERVER_URL` is no longer consulted, and an addon's own `repository.url` now names its release host. Thx, [Jack Myers](https://github.com/JackMyers001)._
 - 1.7.0 _added optional artifact integrity verification: a new `hash-github-cache` bin records each published binary's SHA-256. Thx, [ataberk-xyz](https://github.com/ataberk-xyz)._
 - 1.6.0 _added N-API support: `--napi` / `--napi-var` / `DOWNLOAD_NAPI` swap the URL slot from `${abi}` to `napi-v${level}`, collapsing the per-Node-major build matrix._
 - 1.5.0 _added optional proxy support via `--agent` / `--agent-var` / `DOWNLOAD_AGENT`; converted to ESM; added an automated test suite; minimum Node bumped to 18._
