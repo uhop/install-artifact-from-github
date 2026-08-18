@@ -63,19 +63,33 @@ const decompress = (buffer, compression) =>
 
 const hash = buffer => 'sha256:' + createHash('sha256').update(buffer).digest('hex');
 
-const httpGet = (url, headers = {}) =>
+const dropAuth = headers => Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'authorization'));
+
+const MAX_REDIRECTS = 5;
+
+const httpGet = (url, headers = {}, hops = 0) =>
   new Promise((resolve, reject) => {
-    const target = typeof url === 'string' ? url : url.href;
-    const httpLib = /^http:\/\//i.test(target) ? http : https;
+    const target = typeof url === 'string' ? new URL(url) : url;
+    const httpLib = /^http:\/\//i.test(target.href) ? http : https;
     httpLib
-      .get(url, {headers: {'User-Agent': 'uhop/install-artifact-from-github', ...headers}}, res => {
+      .get(target, {headers: {'User-Agent': 'uhop/install-artifact-from-github', ...headers}}, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          // Drop auth on redirect: asset URLs bounce to a separate CDN host (avoids leaking a token).
-          httpGet(res.headers.location).then(resolve, reject);
+          if (hops >= MAX_REDIRECTS) {
+            reject(Error(`Too many redirects for ${target.href}`));
+            return;
+          }
+          // Drain the abandoned body, or its socket sits in the agent pool and holds the process open.
+          res.resume();
+          // `Location` may be relative — resolve it against the URL that produced it.
+          const next = new URL(res.headers.location, target);
+          // Credentials are per-origin: the token must not follow a hop off the instance (asset
+          // downloads bounce to a CDN), but a hop that stays on it keeps it.
+          const sameOrigin = next.protocol === target.protocol && next.host === target.host;
+          httpGet(next.href, sameOrigin ? headers : dropAuth(headers), hops + 1).then(resolve, reject);
           return;
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(Error(`Status ${res.statusCode} for ${target}`));
+          reject(Error(`Status ${res.statusCode} for ${target.href}`));
           return;
         }
         const chunks = [];
@@ -109,14 +123,18 @@ const collectFromDir = async dir => {
   return bag;
 };
 
-// github.com serves its API from a dedicated host with no path; an enterprise instance serves it
-// from the instance itself under /api/v3. Joining as a string, not `new URL(path, base)`, which
-// would drop that path.
+// Three API-base shapes: github.com and Enterprise Cloud with data residency (`<sub>.ghe.com`)
+// both serve from a dedicated `api.` host with no path; Enterprise Server serves from the instance
+// itself under /api/v3. Joining as a string, not `new URL(path, base)`, which would drop that path.
+const gheCloudHost = /^(https?:\/\/)([^\/]+\.ghe\.com(?::\d+)?)$/i;
+
 const getApiBase = repoHost => {
   const configured = process.env.GITHUB_API_URL;
   if (configured) return configured.replace(/\/+$/, '');
-  if (repoHost && repoHost !== 'https://github.com') return repoHost + '/api/v3';
-  return 'https://api.github.com';
+  if (!repoHost || repoHost === 'https://github.com') return 'https://api.github.com';
+  const cloud = gheCloudHost.exec(repoHost);
+  if (cloud) return cloud[1] + 'api.' + cloud[2];
+  return repoHost + '/api/v3';
 };
 
 const collectFromRelease = async (owner, repo, tag, apiBase) => {
@@ -125,10 +143,14 @@ const collectFromRelease = async (owner, repo, tag, apiBase) => {
   const headers = {Accept: 'application/vnd.github.v3+json'};
   if (token) headers.Authorization = 'Bearer ' + token;
   const release = JSON.parse((await httpGet(releaseUrl, headers)).toString());
-  const bySlot = pickBestPerSlot((release.assets || []).map(a => ({name: a.name, url: a.browser_download_url})));
+  // With a token, download through the API asset endpoint (`url` + octet-stream): the documented
+  // non-browser route, and the only one that authenticates a private asset. Unauthenticated stays on
+  // `browser_download_url`, which is not API-rate-limited.
+  const bySlot = pickBestPerSlot((release.assets || []).map(a => ({name: a.name, url: token ? a.url : a.browser_download_url})));
+  const assetHeaders = token ? {...headers, Accept: 'application/octet-stream'} : {};
   const bag = {};
   for (const [slot, {url, compression}] of bySlot) {
-    bag[slot] = hash(await decompress(await httpGet(url), compression));
+    bag[slot] = hash(await decompress(await httpGet(url, assetHeaders), compression));
   }
   return bag;
 };

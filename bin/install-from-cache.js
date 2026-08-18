@@ -162,7 +162,9 @@ const loadAgent = async () => {
 };
 const downloadAgent = await loadAgent();
 
-const get = url =>
+const MAX_REDIRECTS = 5;
+
+const get = (url, hops = 0) =>
   new Promise((resolve, reject) => {
     const httpLib = isHttps.test(url) ? https : isHttp.test(url) ? http : null;
     if (!httpLib) {
@@ -174,7 +176,14 @@ const get = url =>
     httpLib
       .get(url, {agent: downloadAgent}, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
-          get(res.headers.location).then(resolve, reject);
+          if (hops >= MAX_REDIRECTS) {
+            reject(Error(`Too many redirects for ${url}`));
+            return;
+          }
+          // Drain the abandoned body, or its socket sits in the agent pool and holds the process open.
+          res.resume();
+          // `Location` may be relative — resolve it against the URL that produced it.
+          get(new URL(res.headers.location, url).href, hops + 1).then(resolve, reject);
           return;
         }
         if (res.statusCode != 200) {

@@ -9,11 +9,15 @@ import http from 'node:http';
 //
 // Use setAsset(path, body) to pre-stage a download fixture. Anything
 // else returns 404. Posted uploads land in `recorded` for assertions.
+// opts.redirects maps a pathname to a 302 Location (relative or absolute);
+// the original query string rides along when the target carries none.
 
 export const startMockServer = async (opts = {}) => {
   const apiPrefix = opts.apiPrefix || ''; // e.g. '/api/v3' to impersonate GitHub Enterprise
+  const redirects = opts.redirects || {}; // pathname -> Location
   const assets = new Map(); // path -> {body: Buffer, contentType?: string}
   const recorded = []; // {name, label, body, headers}
+  const requests = []; // every request: {method, pathname, headers}
 
   const releaseHandler =
     opts.releaseHandler ||
@@ -26,6 +30,14 @@ export const startMockServer = async (opts = {}) => {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
+    requests.push({method: req.method, pathname, headers: {...req.headers}});
+
+    if (redirects[pathname]) {
+      const location = redirects[pathname];
+      res.writeHead(302, {location: location.includes('?') ? location : location + url.search});
+      res.end();
+      return;
+    }
 
     // GET /repos/:owner/:repo/releases/tags/:tag
     let m =
@@ -77,12 +89,14 @@ export const startMockServer = async (opts = {}) => {
     port,
     url: `http://127.0.0.1:${port}`,
     recorded,
+    requests,
     setAsset(pathname, body, contentType) {
       assets.set(pathname, {body, contentType});
     },
     clearAssets() {
       assets.clear();
       recorded.length = 0;
+      requests.length = 0;
     },
     close: () => new Promise(r => server.close(() => r()))
   };

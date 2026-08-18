@@ -60,6 +60,23 @@ test('install-from-cache: brotli artifact wins when available', async t => {
   }
 });
 
+test('install-from-cache: follows a relative Location to the artifact', async t => {
+  const server = await startMockServer({redirects: {[ASSET_PATH + '.br']: '/cdn/artifact.br'}});
+  const sandbox = await makeSandbox();
+  try {
+    const payload = Buffer.from('hello-after-a-relative-redirect');
+    server.setAsset('/cdn/artifact.br', await brotli(payload));
+
+    const r = await runInstall(server, sandbox);
+    t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout})`);
+    const written = await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin'));
+    t.deepEqual(written, payload, 'the relative Location resolved against the asset URL');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
 test('install-from-cache: falls back to gzip when brotli is missing', async t => {
   const server = await startMockServer();
   const sandbox = await makeSandbox();

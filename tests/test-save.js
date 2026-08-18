@@ -45,6 +45,58 @@ test('save-to-github-cache: an enterprise GITHUB_API_URL keeps its /api/v3 path'
   }
 });
 
+const uploadAt = pathname => (req, res, ctx) => {
+  res.writeHead(200, {'content-type': 'application/json'});
+  res.end(JSON.stringify({upload_url: `http://${req.headers.host}${pathname}{?name,label}`, tag_name: ctx.tag}));
+};
+
+test('save-to-github-cache: a same-origin redirect keeps the credentials', async t => {
+  const server = await startMockServer({
+    releaseHandler: uploadAt('/_uploads/start'),
+    redirects: {'/_uploads/start': '/_uploads/final'}
+  });
+  const payload = Buffer.from('same-origin-artifact');
+  const fixture = await writeArtifact(payload);
+  try {
+    const r = await runBin('save-to-github-cache.js', {
+      args: ['--artifact', fixture.file, '--prefix', PREFIX, '--suffix', SUFFIX, '--format', 'none'],
+      env: saveEnv(server.url)
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    t.equal(server.recorded.length, 1, 'the upload followed the redirect');
+    t.ok(server.recorded[0].headers.authorization, 'credentials survived a hop inside the same origin');
+    t.deepEqual(server.recorded[0].body, payload, 'the body was replayed to the redirect target');
+  } finally {
+    await server.close();
+    await fixture.cleanup();
+  }
+});
+
+test('save-to-github-cache: a cross-origin redirect drops the credentials', async t => {
+  const elsewhere = await startMockServer();
+  const server = await startMockServer({
+    releaseHandler: uploadAt('/_uploads/start'),
+    redirects: {'/_uploads/start': `${elsewhere.url}/_uploads/final`}
+  });
+  const payload = Buffer.from('cross-origin-artifact');
+  const fixture = await writeArtifact(payload);
+  try {
+    const r = await runBin('save-to-github-cache.js', {
+      args: ['--artifact', fixture.file, '--prefix', PREFIX, '--suffix', SUFFIX, '--format', 'none'],
+      env: saveEnv(server.url)
+    });
+    t.equal(r.code, 0, `bin exited 0 (stderr=${r.stderr})`);
+    t.equal(server.recorded.length, 0, 'nothing landed on the redirecting origin');
+    t.equal(elsewhere.recorded.length, 1, 'the upload followed the redirect to the other origin');
+    t.equal(elsewhere.recorded[0].headers.authorization, undefined, 'the token did not cross the origin');
+    t.deepEqual(elsewhere.recorded[0].body, payload, 'the body still arrived');
+  } finally {
+    await server.close();
+    await elsewhere.close();
+    await fixture.cleanup();
+  }
+});
+
 test('save-to-github-cache: uploads brotli + gzip + uncompressed for --format br,gz,none', async t => {
   const server = await startMockServer();
   const payload = Buffer.from('hello-save-bin');

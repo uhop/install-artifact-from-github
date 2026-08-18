@@ -9,12 +9,13 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 // Run a bin script with a controlled env and cwd. Resolves once the process exits.
 // Always isolates env (no inherited npm_*); caller passes exactly what the test needs.
-export const runBin = async (binName, {args = [], env = {}, cwd}) => {
+export const runBin = async (binName, {args = [], env = {}, cwd, timeout}) => {
   const bin = path.join(REPO_ROOT, 'bin', binName);
   return new Promise((resolve, reject) => {
     const proc = spawn(process.execPath, [bin, ...args], {
       cwd: cwd || REPO_ROOT,
-      env: {PATH: process.env.PATH, HOME: process.env.HOME, ...env}
+      env: {PATH: process.env.PATH, HOME: process.env.HOME, ...env},
+      timeout
     });
     const out = [];
     const err = [];

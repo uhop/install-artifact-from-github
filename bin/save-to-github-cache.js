@@ -46,19 +46,41 @@ const cleanOptions = options => {
   return result;
 };
 
-const io = (url, options = {}, data) =>
+// Credentials are per-origin. An upload legitimately redirects inside its own origin, so a
+// same-origin hop keeps them; anything crossing the origin must not carry the token to whatever
+// host `Location` names.
+const dropCredentials = options => {
+  const {auth, headers, ...rest} = options;
+  if (!headers) return rest;
+  return {...rest, headers: Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'authorization'))};
+};
+
+const MAX_REDIRECTS = 5;
+
+const io = (url, options = {}, data, hops = 0) =>
   new Promise((resolve, reject) => {
     let buffer = null;
     options = cleanOptions(options);
-    const httpLib = isHttp.test(typeof url === 'string' ? url : url.href) ? http : https;
+    const target = typeof url === 'string' ? new URL(url) : url;
+    const httpLib = isHttp.test(target.href) ? http : https;
     const req = httpLib
-      .request(url, options, res => {
+      .request(target, options, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
-          io(res.headers.location, options, data).then(resolve, reject);
+          if (hops >= MAX_REDIRECTS) {
+            reject(Error(`Too many redirects for ${target.href}`));
+            return;
+          }
+          // Drain the abandoned body, or its socket sits in the agent pool and holds the process open.
+          res.resume();
+          // Resolved against the current URL: `Location` may be relative, and a same-origin
+          // comparison needs an absolute one either way.
+          const next = new URL(res.headers.location, target);
+          const sameOrigin = next.protocol === target.protocol && next.host === target.host;
+          io(next, sameOrigin ? options : dropCredentials(options), data, hops + 1).then(resolve, reject);
           return;
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(Error(`Status ${res.statusCode} for ${url}`));
+          reject(Error(`Status ${res.statusCode} for ${target.href}`));
           return;
         }
         res.on('data', data => {
