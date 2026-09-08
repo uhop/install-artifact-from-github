@@ -314,6 +314,13 @@ const main = async () => {
     if (copied && (await isVerified())) return console.log('Done.');
   }
   console.log('Building locally ...');
-  await run(`${packageManager} run rebuild`);
+  try {
+    await run(`${packageManager} run rebuild`);
+  } catch (e) {
+    // The non-zero exit is the contract consumers chain `|| node-gyp rebuild` on; only the trace was noise.
+    const reason = e instanceof Error ? e.message : typeof e === 'number' ? `exit code ${e}` : `signal ${e}`;
+    console.error(`The rebuild has failed: ${reason}.`);
+    process.exitCode = typeof e === 'number' ? e : 1;
+  }
 };
 main();

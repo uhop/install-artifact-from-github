@@ -164,3 +164,26 @@ test('install-from-cache: without npm_execpath, npm is called by name', async t 
     await sandbox.cleanup();
   }
 });
+
+test('install-from-cache: a failing rebuild exits with its code and one line, no stack trace', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeSandbox();
+  const record = path.join(sandbox.dir, 'pm.jsonl');
+  try {
+    // Nothing staged: every download 404s and the bin goes straight to the rebuild.
+    const r = await runInstall(sandbox, {...baseEnv(server, record), npm_execpath: PM_STUB, PM_FAIL: 'rebuild'});
+    t.equal(r.code, 1, `bin exited with the rebuild's code (stdout=${r.stdout} stderr=${r.stderr})`);
+    t.ok(r.stdout.includes('Building locally'), 'announced the fallback');
+    t.ok(r.stderr.includes('The rebuild has failed: exit code 1'), 'one line names the failure');
+    t.notOk(r.stderr.includes('UnhandledPromiseRejection'), 'no unhandled-rejection trace');
+    const calls = await readCalls(record);
+    t.deepEqual(
+      calls.map(c => c.args),
+      [['run', 'rebuild']],
+      'only the rebuild was attempted'
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
