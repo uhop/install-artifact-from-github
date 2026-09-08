@@ -82,6 +82,7 @@ The full documentation is in the **[wiki](https://github.com/uhop/install-artifa
 
 ## Release history
 
+- 1.8.1 _fixed `install-from-cache` under Corepack (thx, [rainecheck](https://github.com/rainecheck)); fixed redirect handling in all three bins; `hash-github-cache --from-release` now reaches GitHub Enterprise Cloud's API host and reads private releases._
 - 1.8.0 _fixed the download host under GitHub Enterprise Actions: `GITHUB_SERVER_URL` is no longer consulted, and an addon's own `repository.url` now names its release host. Thx, [Jack Myers](https://github.com/JackMyers001)._
 - 1.7.0 _added optional artifact integrity verification: a new `hash-github-cache` bin records each published binary's SHA-256. Thx, [ataberk-xyz](https://github.com/ataberk-xyz)._
 - 1.6.0 _added N-API support: `--napi` / `--napi-var` / `DOWNLOAD_NAPI` swap the URL slot from `${abi}` to `napi-v${level}`, collapsing the per-Node-major build matrix._
