@@ -2,7 +2,7 @@
 
 > A no-dependency micro helper for developers of binary Node addons. Three single-file bins integrated with GitHub Releases: `save-to-github-cache` uploads pre-built binary artifacts from CI; `install-from-cache` downloads the right artifact at install time, optionally verifies its SHA-256 against a hash bag pinned in the addon's `package.json`, and falls back to building from sources on any failure; `hash-github-cache` generates that hash bag at release time. Zero dependencies, ESM, Node >= 18.
 
-The package has no importable API — it is consumed entirely through the three bins, wired into a consuming addon's `package.json` scripts. The download path is a lossless optimization: every failure mode (missing asset, network error, failed verification, misconfiguration) degrades to `npm run rebuild`, the textbook `node-gyp` flow.
+The package has no importable API — it is consumed entirely through the three bins, wired into a consuming addon's `package.json` scripts. The download path is a lossless optimization: every failure mode (missing asset, network error, failed verification, misconfiguration) degrades to the addon's `rebuild` script, the textbook `node-gyp` flow.
 
 ## Install
 
@@ -26,7 +26,7 @@ In the addon's `package.json`:
 ```
 
 - `install` — runs on the user's machine during `npm install` of the addon.
-- `verify-build` — used by `install` to check the downloaded artifact works; if absent, `npm test` is used; if both are absent, the download is not trusted and the source build runs.
+- `verify-build` — used by `install` to check the downloaded artifact works; if absent, the `test` script is used; if both are absent, the download is not trusted and the source build runs.
 - `rebuild` — used by `install` to build from sources when the download path fails; must be provided.
 - `save-to-github` — run from CI (GitHub Actions) after building the artifact on a tagged release.
 
@@ -39,8 +39,10 @@ Algorithm:
 3. Try downloading `${url}.br` (if the running Node supports brotli), then `${url}.gz`, then `${url}` uncompressed. Each failure falls through silently. HTTP 3xx redirects are followed; a host that is not `http(s)://` is read as a local filesystem path.
 4. *(since 1.7.0)* Integrity check: if the consumer ships an `artifactHashes` bag and the download came from the canonical source, the decompressed bytes' SHA-256 must match the bag entry for this slot before anything is written; a failure rejects the artifact and falls through to the source build (see "Artifact integrity verification" below).
 5. Decompress and write the artifact to the `--artifact` path (directories are created as needed).
-6. Verify: run `npm run verify-build` if the consumer defines it, else `npm test`, suppressing output unless `DEVELOPMENT_SHOW_VERIFICATION_RESULTS` is set. Exit code 0 means done.
-7. Any failure above ends in `npm run rebuild`.
+6. Verify: run the consumer's `verify-build` script if defined, else its `test` script, suppressing output unless `DEVELOPMENT_SHOW_VERIFICATION_RESULTS` is set. Exit code 0 means done.
+7. Any failure above ends in the consumer's `rebuild` script.
+
+The scripts are run with the package manager that is running the install: the executable named by the `npm_execpath` environment variable (npm, pnpm, Yarn, and Bun all set it for the scripts they run; a `.js` / `.cjs` / `.mjs` value runs under the current `node`, anything else runs as is), or `npm` when the variable is unset. A hardcoded `npm` was refused by Corepack in projects whose `package.json` declares another manager in `packageManager` (issue #30).
 
 When any of the cross-build overrides (`npm_config_platform`, `npm_config_platform_arch`, `npm_config_platform_abi`) is set, the `verify-build` step is skipped — a foreign binary cannot be tested on the build machine. (Integrity verification, which only checks bytes, still runs.)
 
@@ -59,7 +61,7 @@ When any of the cross-build overrides (`npm_config_platform`, `npm_config_platfo
 - `--agent-var ENVVAR` — env-var name for the agent module path. Default name: `DOWNLOAD_AGENT`.
 - `--napi level` — declare the N-API level of the published binaries; replaces the Node-ABI URL slot with `napi-v${level}`.
 - `--napi-var ENVVAR` — env-var name for the N-API level. Default name: `DOWNLOAD_NAPI`. (Also honors `npm_config_platform_napi` for cross-builds.)
-- *(since 1.7.0)* `--force-build` — skip the download entirely and go straight to `npm run rebuild`; nothing is fetched or verified. A clearly-named alias for the `DEVELOPMENT_SKIP_GETTING_ASSET` / `.development` short-circuit, for consumers who prefer to trust only npm plus their own toolchain.
+- *(since 1.7.0)* `--force-build` — skip the download entirely and go straight to the `rebuild` script; nothing is fetched or verified. A clearly-named alias for the `DEVELOPMENT_SKIP_GETTING_ASSET` / `.development` short-circuit, for consumers who prefer to trust only npm plus their own toolchain.
 - *(since 1.7.0)* `--force-build-var ENVVAR` — env-var name for the forced build. Default name: `DOWNLOAD_FORCE_BUILD`.
 
 The `--flag` form always wins over `--flag-var`; the `--flag-var`-named env var wins over the default-named env var. Library authors should prefer `--xxx-var MYPKG_XXX` so consumers can configure one addon without affecting others.
@@ -104,7 +106,7 @@ Because it rides the addon's immutable, npm-published `package.json`, an attacke
 Behavior at install time:
 
 - **Canonical source + bag present + hash matches** → the artifact is written.
-- **Canonical source + bag present + hash mismatches, or the bag has no entry for this slot** → the artifact is rejected and the install falls through to `npm run rebuild` (strict: an uncovered slot is treated as a failure, since a complete bag means "anything unlisted should not exist").
+- **Canonical source + bag present + hash mismatches, or the bag has no entry for this slot** → the artifact is rejected and the install falls through to the `rebuild` script (strict: an uncovered slot is treated as a failure, since a complete bag means "anything unlisted should not exist").
 - **A `--host` / `DOWNLOAD_HOST` mirror** → never checked. A curated mirror legitimately serves the deployer's own build, whose bytes need not match the upstream bag; the mirror is the deployer's trust root.
 - **No `artifactHashes` in `package.json`** → nothing to check; installs exactly as before (non-breaking).
 

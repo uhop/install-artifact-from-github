@@ -111,6 +111,15 @@ const isDev = async () => {
   return false;
 };
 
+// A hardcoded `npm` trips Corepack when the consumer's project declares another manager (issue #30);
+// the manager running this install names itself in npm_execpath (npm, pnpm, yarn, bun).
+const quote = s => `"${s}"`;
+const packageManager = (() => {
+  const execPath = process.env.npm_execpath;
+  if (!execPath) return 'npm';
+  return /\.[cm]?js$/i.test(execPath) ? `${quote(process.execPath)} ${quote(execPath)}` : quote(execPath);
+})();
+
 const run = (cmd, suppressOutput) =>
   new Promise((resolve, reject) => {
     const p = exec(cmd);
@@ -135,9 +144,9 @@ const isVerified = async () => {
   }
   try {
     if (process.env.npm_package_scripts_verify_build) {
-      await run('npm run verify-build', true);
+      await run(`${packageManager} run verify-build`, true);
     } else if (process.env.npm_package_scripts_test) {
-      await run('npm test', true);
+      await run(`${packageManager} run test`, true);
     } else {
       console.log('No verify-build nor test scripts were found -- no way to verify the build automatically.');
       return false;
@@ -305,6 +314,6 @@ const main = async () => {
     if (copied && (await isVerified())) return console.log('Done.');
   }
   console.log('Building locally ...');
-  await run('npm run rebuild');
+  await run(`${packageManager} run rebuild`);
 };
 main();
