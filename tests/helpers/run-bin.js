@@ -7,6 +7,11 @@ import {fileURLToPath} from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+// tape6 runs each file in a worker thread, whose process.env is a case-sensitive copy: on Windows the
+// variable is spelled `Path`, so a plain process.env.PATH is undefined there.
+const pathKey = Object.keys(process.env).find(key => key.toUpperCase() === 'PATH');
+export const hostPath = () => (pathKey ? process.env[pathKey] : '');
+
 // Run a bin script with a controlled env and cwd. Resolves once the process exits.
 // Always isolates env (no inherited npm_*); caller passes exactly what the test needs.
 export const runBin = async (binName, {args = [], env = {}, cwd, timeout}) => {
@@ -14,7 +19,7 @@ export const runBin = async (binName, {args = [], env = {}, cwd, timeout}) => {
   return new Promise((resolve, reject) => {
     const proc = spawn(process.execPath, [bin, ...args], {
       cwd: cwd || REPO_ROOT,
-      env: {PATH: process.env.PATH, HOME: process.env.HOME, ...env},
+      env: {PATH: hostPath(), HOME: process.env.HOME, ...env},
       timeout
     });
     const out = [];

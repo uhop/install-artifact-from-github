@@ -6,7 +6,7 @@ import zlib from 'node:zlib';
 import {promisify} from 'node:util';
 
 import {startMockServer} from './helpers/mock-server.js';
-import {runBin, makeSandbox} from './helpers/run-bin.js';
+import {runBin, makeSandbox, hostPath} from './helpers/run-bin.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const PM_STUB = path.join(__dirname, 'fixtures', 'pm-stub.js');
@@ -64,7 +64,8 @@ test('install-from-cache: verify-build runs through the node script named by npm
       [['run', 'verify-build']],
       'exactly one manager call: run verify-build'
     );
-    t.equal(calls[0].cwd, sandbox.dir, 'the script runs in the addon directory');
+    // realpath on both sides: macOS serves the temp dir through the /var → /private/var symlink.
+    t.equal(await fsp.realpath(calls[0].cwd), await fsp.realpath(sandbox.dir), 'the script runs in the addon directory');
   } finally {
     await server.close();
     await sandbox.cleanup();
@@ -149,7 +150,7 @@ test('install-from-cache: without npm_execpath, npm is called by name', async t 
     await stageAsset(server);
     const binDir = path.join(sandbox.dir, 'fake-path');
     await writeWrapper(binDir, 'npm');
-    const r = await runInstall(sandbox, {...baseEnv(server, record), PATH: `${binDir}${path.delimiter}${process.env.PATH}`});
+    const r = await runInstall(sandbox, {...baseEnv(server, record), PATH: `${binDir}${path.delimiter}${hostPath()}`});
     t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout} stderr=${r.stderr})`);
     t.ok(r.stdout.includes('Done.'), 'reports Done.');
     const calls = await readCalls(record);
