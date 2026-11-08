@@ -230,8 +230,9 @@ const verifyArtifact = data => {
 
 const main = async () => {
   checks: {
-    if (process.env.npm_package_json && /\bpackage\.json$/i.test(process.env.npm_package_json)) {
-      // for NPM >= 7
+    // Legacy package managers leave it unset; an install script runs in the addon's directory.
+    process.env.npm_package_json ||= path.resolve('package.json');
+    if (/\bpackage\.json$/i.test(process.env.npm_package_json)) {
       try {
         const pkg = JSON.parse(await fsp.readFile(process.env.npm_package_json, 'utf8'));
         process.env.npm_package_github = pkg.github || '';

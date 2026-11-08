@@ -198,10 +198,63 @@ test('verify: GITHUB_SERVER_URL does not redirect the download (issue #27)', asy
   }
 });
 
+// A legacy package manager gives an install script flattened variables and no npm_package_json.
+const legacyEnv = server => ({
+  npm_config_platform: PLATFORM,
+  npm_config_platform_arch: ARCH,
+  npm_config_platform_abi: ABI,
+  npm_package_github: repoUrlFor(server),
+  npm_package_version: VERSION
+});
+
+test('verify: without npm_package_json, a hash mismatch is still rejected', async t => {
+  const server = await startMockServer();
+  const payload = Buffer.from('swapped-malicious-binary');
+  const sandbox = await makeBagSandbox({[SLOT]: sha(Buffer.from('what-the-author-published'))}, repoUrlFor(server));
+  try {
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+    const r = await runInstall(sandbox, legacyEnv(server));
+    t.ok(r.stdout.includes(`Integrity check failed for ${SLOT}`), `announces the integrity failure (stdout=${r.stdout})`);
+    t.notOk(await artifactExists(sandbox), 'the mismatching artifact is NOT written');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('verify: without npm_package_json, a matching hash is written', async t => {
+  const server = await startMockServer();
+  const payload = Buffer.from('the-real-binary');
+  const sandbox = await makeBagSandbox({[SLOT]: sha(payload)}, repoUrlFor(server));
+  try {
+    server.setAsset(ASSET_PATH + '.br', await brotli(payload));
+    const r = await runInstall(sandbox, legacyEnv(server));
+    t.equal(r.code, 0, `bin exited 0 (stdout=${r.stdout})`);
+    t.deepEqual(await fsp.readFile(path.join(sandbox.dir, 'out/artifact.bin')), payload, 'verified artifact written');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
+test('verify: without npm_package_json or a package.json, nothing is downloaded', async t => {
+  const server = await startMockServer();
+  const sandbox = await makeBagSandbox(null, repoUrlFor(server));
+  try {
+    server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('should-not-be-fetched')));
+    await fsp.rm(sandbox.pkgJson);
+    const r = await runInstall(sandbox, legacyEnv(server));
+    t.ok(r.stdout.includes('Could not retrieve and parse package.json'), `logs the reason (stdout=${r.stdout})`);
+    t.ok(r.stdout.includes('Building locally'), 'falls through to the source build');
+    t.notOk(await artifactExists(sandbox), 'nothing written');
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+});
+
 const forceBuildEnv = serverUrl => ({
   DOWNLOAD_HOST: serverUrl,
-  npm_package_github: 'owner/repo',
-  npm_package_version: VERSION,
   npm_config_platform: PLATFORM,
   npm_config_platform_arch: ARCH,
   npm_config_platform_abi: ABI
@@ -209,7 +262,7 @@ const forceBuildEnv = serverUrl => ({
 
 test('force-build: --force-build skips the download and builds from source', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeSandbox({github: 'owner/repo', version: VERSION});
   try {
     server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('should-not-be-fetched')));
     const r = await runBin('install-from-cache.js', {
@@ -235,7 +288,7 @@ test('force-build: --force-build skips the download and builds from source', asy
 
 test('force-build: DOWNLOAD_FORCE_BUILD env has the same effect', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeSandbox({github: 'owner/repo', version: VERSION});
   try {
     server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('should-not-be-fetched')));
     const r = await runBin('install-from-cache.js', {
@@ -253,7 +306,7 @@ test('force-build: DOWNLOAD_FORCE_BUILD env has the same effect', async t => {
 
 test('force-build: --force-build-var reads a project-namespaced env var', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeSandbox({github: 'owner/repo', version: VERSION});
   try {
     server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('should-not-be-fetched')));
     const r = await runBin('install-from-cache.js', {

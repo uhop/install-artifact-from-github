@@ -29,10 +29,10 @@ const installEnv = host => ({
   npm_config_platform: PLATFORM,
   npm_config_platform_arch: ARCH,
   npm_config_platform_abi: ABI,
-  npm_package_github: 'owner/repo',
-  npm_package_version: VERSION,
   DOWNLOAD_HOST: host
 });
+
+const makeAddon = () => makeSandbox({github: 'owner/repo', version: VERSION});
 
 const runInstall = async (server, sandbox, extraEnv = {}) => {
   return runBin('install-from-cache.js', {
@@ -44,7 +44,7 @@ const runInstall = async (server, sandbox, extraEnv = {}) => {
 
 test('install-from-cache: brotli artifact wins when available', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const payload = Buffer.from('hello-from-brotli');
     server.setAsset(ASSET_PATH + '.br', await brotli(payload));
@@ -62,7 +62,7 @@ test('install-from-cache: brotli artifact wins when available', async t => {
 
 test('install-from-cache: follows a relative Location to the artifact', async t => {
   const server = await startMockServer({redirects: {[ASSET_PATH + '.br']: '/cdn/artifact.br'}});
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const payload = Buffer.from('hello-after-a-relative-redirect');
     server.setAsset('/cdn/artifact.br', await brotli(payload));
@@ -79,7 +79,7 @@ test('install-from-cache: follows a relative Location to the artifact', async t 
 
 test('install-from-cache: falls back to gzip when brotli is missing', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const payload = Buffer.from('hello-from-gzip');
     server.setAsset(ASSET_PATH + '.gz', await gzip(payload));
@@ -96,7 +96,7 @@ test('install-from-cache: falls back to gzip when brotli is missing', async t =>
 
 test('install-from-cache: falls back to uncompressed when br + gz are missing', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const payload = Buffer.from('hello-uncompressed');
     server.setAsset(ASSET_PATH, payload);
@@ -113,7 +113,7 @@ test('install-from-cache: falls back to uncompressed when br + gz are missing', 
 
 test('install-from-cache: format precedence — br beats gz beats none', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('B')));
     server.setAsset(ASSET_PATH + '.gz', await gzip(Buffer.from('G')));
@@ -131,7 +131,7 @@ test('install-from-cache: format precedence — br beats gz beats none', async t
 
 test('install-from-cache: no asset available → falls through to npm run rebuild', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     // No fixtures registered → server returns 404 for every variant.
     const r = await runInstall(server, sandbox);
@@ -152,7 +152,7 @@ test('install-from-cache: no asset available → falls through to npm run rebuil
 
 test('install-from-cache: --artifact missing → no download attempted, falls back to rebuild', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('should-not-be-fetched')));
     const r = await runBin('install-from-cache.js', {
@@ -171,7 +171,7 @@ test('install-from-cache: --artifact missing → no download attempted, falls ba
 
 test('install-from-cache: DEVELOPMENT_SKIP_GETTING_ASSET short-circuits the download', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     server.setAsset(ASSET_PATH + '.br', await brotli(Buffer.from('would-have-been-served')));
     const r = await runInstall(server, sandbox, {DEVELOPMENT_SKIP_GETTING_ASSET: '1'});
@@ -192,7 +192,7 @@ test('install-from-cache: DEVELOPMENT_SKIP_GETTING_ASSET short-circuits the down
 
 test('install-from-cache: DOWNLOAD_AGENT loads a custom agent and routes requests through it', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   const recordPath = path.join(sandbox.dir, 'agent-calls.jsonl');
   try {
     const payload = Buffer.from('routed-via-custom-agent');
@@ -221,7 +221,7 @@ test('install-from-cache: DOWNLOAD_AGENT loads a custom agent and routes request
 
 test('install-from-cache: --agent flag overrides the env var', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   const recordPath = path.join(sandbox.dir, 'agent-calls.jsonl');
   try {
     const payload = Buffer.from('routed-via-flag');
@@ -245,7 +245,7 @@ test('install-from-cache: --agent flag overrides the env var', async t => {
 
 test('install-from-cache: --agent-var picks the env var name (project-namespacing)', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   const recordPath = path.join(sandbox.dir, 'agent-calls.jsonl');
   try {
     const payload = Buffer.from('routed-via-custom-envvar');
@@ -274,7 +274,7 @@ test('install-from-cache: --agent-var picks the env var name (project-namespacin
 
 test('install-from-cache: DOWNLOAD_AGENT pointing at a bogus path degrades gracefully', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const payload = Buffer.from('still-works-without-agent');
     server.setAsset(ASSET_PATH + '.br', await brotli(payload));
@@ -294,7 +294,7 @@ test('install-from-cache: DOWNLOAD_AGENT pointing at a bogus path degrades grace
 
 test('install-from-cache: --napi switches the URL slot from ABI to napi-v<level>', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const napiAsset = `${PREFIX}${PLATFORM}-${ARCH}-napi-v8${SUFFIX}`;
     const napiPath = `/owner/repo/releases/download/${VERSION}/${napiAsset}`;
@@ -319,7 +319,7 @@ test('install-from-cache: --napi switches the URL slot from ABI to napi-v<level>
 
 test('install-from-cache: --napi-var indirection reads project-specific env var', async t => {
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const napiAsset = `${PREFIX}${PLATFORM}-${ARCH}-napi-v9${SUFFIX}`;
     const napiPath = `/owner/repo/releases/download/${VERSION}/${napiAsset}`;
@@ -348,7 +348,7 @@ test('install-from-cache: --napi-var indirection reads project-specific env var'
 test('install-from-cache: --napi missing → ABI mode unchanged', async t => {
   // Regression: existing behavior must be byte-identical when no --napi is passed.
   const server = await startMockServer();
-  const sandbox = await makeSandbox();
+  const sandbox = await makeAddon();
   try {
     const payload = Buffer.from('still-uses-abi-slot');
     server.setAsset(ASSET_PATH + '.br', await brotli(payload));
@@ -367,12 +367,10 @@ test('install-from-cache: missing repo info → no download, falls back', async 
   const server = await startMockServer();
   const sandbox = await makeSandbox();
   try {
-    const env = installEnv(server.url);
-    delete env.npm_package_github;
     const r = await runBin('install-from-cache.js', {
       cwd: sandbox.dir,
       args: ['--artifact', 'out/artifact.bin', '--prefix', PREFIX, '--suffix', SUFFIX],
-      env
+      env: installEnv(server.url)
     });
     t.equal(r.code, 0, 'rebuild stub exited 0');
     t.ok(r.stdout.includes('No github repository was identified'), 'logs the missing-repo reason');
