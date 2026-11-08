@@ -26,6 +26,9 @@ consuming package (for example, [node-re2](https://github.com/uhop/node-re2)). R
 the download, verification, or integrity of those artifacts are in scope for this repository
 even when they surface through a consuming package's install script.
 
+Reports that require a legacy package manager are out of scope. For the definition of legacy, see
+[Supported package managers](https://github.com/uhop/install-artifact-from-github/wiki/install‐from‐cache#supported-package-managers).
+
 ## Supported versions
 
 Fixes are released against the latest published version. Please upgrade to the latest
