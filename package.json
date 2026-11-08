@@ -30,6 +30,7 @@
     "node addons"
   ],
   "author": "Eugene Lazutkin <eugene.lazutkin@gmail.com> (https://lazutkin.com/)",
+  "funding": "https://github.com/sponsors/uhop",
   "license": "BSD-3-Clause",
   "funding": {
     "type": "github",
